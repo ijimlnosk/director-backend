@@ -2,7 +2,7 @@ import { buildApp } from './build-app.js';
 import { env } from '../shared/config/env.js';
 import { closeDatabase } from '../shared/database/client.js';
 
-const app = buildApp();
+const app = await buildApp();
 
 async function shutdown(signal: string): Promise<void> {
   app.log.info({ signal }, 'Shutting down');

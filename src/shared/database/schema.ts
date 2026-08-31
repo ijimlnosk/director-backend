@@ -40,7 +40,7 @@ export const areas = pgTable('area', {
 
 export const users = pgTable('user', {
   id: uuid('id').defaultRandom().primaryKey(),
-  deviceId: text('device_id').notNull(),
+  deviceId: text('device_id').notNull().unique(),
   handle: text('handle'),
   homeAreaId: uuid('home_area_id').references(() => areas.id),
   subscription: subscriptionEnum('subscription').notNull().default('free'),
@@ -82,10 +82,10 @@ export const sessions = pgTable('session', {
   transport: transportEnum('transport').notNull(),
   originPoint: geography('origin_point', { type: 'point' }).notNull(),
   areaId: uuid('area_id').notNull().references(() => areas.id),
-  weatherSnapshot: jsonb('weather_snapshot').notNull(),
+  weatherSnapshot: jsonb('weather_snapshot'),
   status: sessionStatusEnum('status').notNull().default('draft'),
   inviteCode: text('invite_code'),
-  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
   endedAt: timestamp('ended_at', { withTimezone: true }),
 }, (table) => [
   index('session_host_user_id_idx').on(table.hostUserId),

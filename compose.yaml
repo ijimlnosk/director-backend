@@ -22,6 +22,7 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       DATABASE_URL: postgresql://director:director@db:5432/director
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (min 32 chars) in your environment}
     ports:
       - "3000:3000"
     depends_on:
