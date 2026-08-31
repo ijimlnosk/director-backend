@@ -39,3 +39,10 @@ export const notFound = (resource: string): AppError =>
 
 export const validationFailed = (message: string, details?: unknown): AppError =>
   new AppError('VALIDATION', message, details);
+
+export const conflict = (message: string): AppError => new AppError('CONFLICT', message);
+
+export const constraintFailed = (message: string, details?: unknown): AppError =>
+  new AppError('CONSTRAINT_FAILED', message, details);
+
+export const forbidden = (message: string): AppError => new AppError('AUTHORIZATION', message);
