@@ -1,18 +1,45 @@
 import type { FastifyInstance } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import { createSessionBody, sessionParams } from './session.schema.js';
+import { createSessionBody, sessionParams, sessionResponse } from './session.schema.js';
 import { createDraftSession, getSessionForUser } from './session.service.js';
 
-export async function sessionRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/sessions', { preHandler: app.authenticate }, async (request, reply) => {
-    const input = createSessionBody.parse(request.body);
-    const session = await createDraftSession(request.user.sub, input);
-    return reply.code(201).send({ session });
-  });
+export async function sessionRoutes(fastify: FastifyInstance): Promise<void> {
+  const app = fastify.withTypeProvider<ZodTypeProvider>();
 
-  app.get('/sessions/:sessionId', { preHandler: app.authenticate }, async (request) => {
-    const { sessionId } = sessionParams.parse(request.params);
-    const session = await getSessionForUser(request.user.sub, sessionId);
-    return { session };
-  });
+  app.post(
+    '/sessions',
+    {
+      schema: {
+        tags: ['session'],
+        summary: 'Create a draft session',
+        security: [{ bearerAuth: [] }],
+        body: createSessionBody,
+        response: { 201: sessionResponse },
+      },
+      preHandler: app.authenticate,
+    },
+    async (request, reply) => {
+      const session = await createDraftSession(request.user.sub, request.body);
+      return reply.code(201).send({ session });
+    },
+  );
+
+  app.get(
+    '/sessions/:sessionId',
+    {
+      schema: {
+        tags: ['session'],
+        summary: 'Fetch a session owned by the caller',
+        security: [{ bearerAuth: [] }],
+        params: sessionParams,
+        response: { 200: sessionResponse },
+      },
+      preHandler: app.authenticate,
+    },
+    async (request) => {
+      const session = await getSessionForUser(request.user.sub, request.params.sessionId);
+      return { session };
+    },
+  );
 }

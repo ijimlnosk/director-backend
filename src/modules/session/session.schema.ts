@@ -16,18 +16,22 @@ export type CreateSessionInput = z.infer<typeof createSessionBody>;
 
 export const sessionParams = z.object({ sessionId: z.uuid() });
 
-export interface SessionView {
-  id: string;
-  mode: 'solo' | 'date' | 'friends';
-  status: 'draft' | 'checking' | 'active' | 'completed' | 'abandoned' | 'archived';
-  durationMin: number;
-  budgetKrw: number | null;
-  transport: 'walk' | 'transit' | 'car';
-  origin: { lat: number; lng: number };
-  areaId: string;
-  startedAt: string | null;
-  endedAt: string | null;
-}
+export const sessionView = z.object({
+  id: z.uuid(),
+  mode: z.enum(['solo', 'date', 'friends']),
+  status: z.enum(['draft', 'checking', 'active', 'completed', 'abandoned', 'archived']),
+  durationMin: z.number().int(),
+  budgetKrw: z.number().int().nullable(),
+  transport: z.enum(['walk', 'transit', 'car']),
+  origin: z.object({ lat: z.number(), lng: z.number() }),
+  areaId: z.uuid(),
+  startedAt: z.string().nullable(),
+  endedAt: z.string().nullable(),
+});
+
+export type SessionView = z.infer<typeof sessionView>;
+
+export const sessionResponse = z.object({ session: sessionView });
 
 export interface SessionRow {
   id: string;

@@ -1,4 +1,8 @@
 import type { FastifyError, FastifyInstance } from 'fastify';
+import {
+  hasZodFastifySchemaValidationErrors,
+  isResponseSerializationError,
+} from 'fastify-type-provider-zod';
 import { ZodError } from 'zod';
 
 import { AppError } from '../../shared/errors/app-error.js';
@@ -14,6 +18,23 @@ export function registerErrorHandler(app: FastifyInstance): void {
       const body: ErrorBody = { error: { code: error.kind, message: error.message } };
       if (error.details !== undefined) body.error.details = error.details;
       return reply.code(error.statusCode).send(body);
+    }
+
+    if (hasZodFastifySchemaValidationErrors(error)) {
+      return reply.code(400).send({
+        error: {
+          code: 'VALIDATION',
+          message: 'Request validation failed',
+          details: error.validation,
+        },
+      } satisfies ErrorBody);
+    }
+
+    if (isResponseSerializationError(error)) {
+      request.log.error(error);
+      return reply.code(500).send({
+        error: { code: 'INTERNAL', message: 'Internal server error' },
+      } satisfies ErrorBody);
     }
 
     if (error instanceof ZodError) {
