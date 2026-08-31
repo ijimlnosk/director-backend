@@ -1,12 +1,13 @@
 services:
   db:
     image: postgis/postgis:17-3.5-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: director
       POSTGRES_USER: director
       POSTGRES_PASSWORD: director
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -14,9 +15,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
 
   app:
     build: .
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -24,10 +27,20 @@ services:
       DATABASE_URL: postgresql://director:director@db:5432/director
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (min 32 chars) in your environment}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3100:3000"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   postgres_data:
