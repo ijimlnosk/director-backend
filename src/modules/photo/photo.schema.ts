@@ -17,10 +17,13 @@ export const uploadUrlResponse = z.object({
   expiresInSec: z.number().int(),
 });
 
-export const completePhotoBody = z.object({
-  width: z.number().int().positive().max(20_000).optional(),
-  height: z.number().int().positive().max(20_000).optional(),
-});
+export const completePhotoBody = z.preprocess(
+  (value) => value ?? {},
+  z.object({
+    width: z.number().int().positive().max(20_000).optional(),
+    height: z.number().int().positive().max(20_000).optional(),
+  }),
+);
 
 export type CompletePhotoInput = z.infer<typeof completePhotoBody>;
 
