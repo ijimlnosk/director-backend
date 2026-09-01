@@ -4,6 +4,8 @@ export interface DirectorCandidate {
   placeId: string;
   category: string;
   distanceM: number;
+  /** Compass + distance phrase from the player's current position. */
+  direction: string;
 }
 
 export interface DirectorRequest {

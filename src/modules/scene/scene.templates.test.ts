@@ -27,20 +27,21 @@ test('estimateTimeLimitMin scales with distance and adds the buffer', () => {
 });
 
 test('buildTemplateScene hides the place name and marks reveal-after-arrival', () => {
-  const scene = buildTemplateScene({ type: 'move', category: '카페', distanceM: 800, transport: 'walk' });
+  const scene = buildTemplateScene({ type: 'move', category: '카페', direction: '북동쪽으로 약 800m', distanceM: 800, transport: 'walk' });
   assert.equal(scene.type, 'move');
   assert.equal(scene.revealNameAfterArrival, true);
   assert.equal(scene.title, '다음 장소로 이동');
   assert.match(scene.body, /도보/);
   assert.match(scene.hint, /카페/);
+  assert.match(scene.body, /북동쪽/);
   assert.equal(scene.timeLimitMin, estimateTimeLimitMin(800, 'walk', 'move'));
 });
 
 test('buildTemplateScene varies copy and time by scene type', () => {
-  const photo = buildTemplateScene({ type: 'photo', category: '문화시설', distanceM: 800, transport: 'walk' });
-  const observe = buildTemplateScene({ type: 'observe', category: '공원', distanceM: 800, transport: 'walk' });
+  const photo = buildTemplateScene({ type: 'photo', category: '문화시설', direction: '동쪽으로 약 800m', distanceM: 800, transport: 'walk' });
+  const observe = buildTemplateScene({ type: 'observe', category: '공원', direction: '남쪽으로 약 800m', distanceM: 800, transport: 'walk' });
   assert.equal(photo.type, 'photo');
   assert.match(photo.body, /사진/);
   assert.ok(observe.timeLimitMin > photo.timeLimitMin);
-  assert.ok(photo.timeLimitMin > buildTemplateScene({ type: 'move', category: 'x', distanceM: 800, transport: 'walk' }).timeLimitMin);
+  assert.ok(photo.timeLimitMin > buildTemplateScene({ type: 'move', category: 'x', direction: '서쪽으로 약 800m', distanceM: 800, transport: 'walk' }).timeLimitMin);
 });

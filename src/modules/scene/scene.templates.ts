@@ -1,4 +1,3 @@
-import { formatDistance } from '../../shared/geo/distance.js';
 import {
   MIN_STEP_M,
   MIN_TIME_LIMIT_MIN,
@@ -50,36 +49,48 @@ export function estimateTimeLimitMin(
   );
 }
 
+interface CopyArgs {
+  category: string;
+  direction: string;
+  transportLabel: string;
+}
+
 const TEMPLATE_COPY: Record<
   GeneratedSceneType,
-  (category: string, distanceLabel: string, transportLabel: string) => { title: string; body: string; hint: string }
+  (a: CopyArgs) => { title: string; body: string; hint: string }
 > = {
-  move: (category, distanceLabel, transportLabel) => ({
+  move: ({ category, direction, transportLabel }) => ({
     title: '다음 장소로 이동',
-    body: `${transportLabel}(으)로 약 ${distanceLabel} 이동하세요. 도착하면 장소가 공개됩니다.`,
-    hint: `${category} 계열 장소입니다.`,
+    body: `${direction}, ${transportLabel}(으)로 이동하세요. 도착하면 장소가 공개됩니다.`,
+    hint: `${direction} 방향의 ${category} 계열 장소입니다.`,
   }),
-  photo: (category, distanceLabel, transportLabel) => ({
+  photo: ({ category, direction, transportLabel }) => ({
     title: '한 컷 남기기',
-    body: `${transportLabel}(으)로 약 ${distanceLabel} 이동해, 그곳에서 마음에 드는 사진을 한 장 남겨보세요.`,
-    hint: `${category} 계열 장소입니다.`,
+    body: `${direction}, ${transportLabel}(으)로 이동해 그곳에서 마음에 드는 사진을 한 장 남겨보세요.`,
+    hint: `${direction} 방향의 ${category} 계열 장소입니다.`,
   }),
-  observe: (category, distanceLabel, transportLabel) => ({
+  observe: ({ category, direction, transportLabel }) => ({
     title: '잠시 머무르기',
-    body: `${transportLabel}(으)로 약 ${distanceLabel} 이동한 뒤, 1~2분간 주변을 천천히 살펴보세요.`,
-    hint: `${category} 계열 장소입니다.`,
+    body: `${direction}, ${transportLabel}(으)로 이동한 뒤 1~2분간 주변을 천천히 살펴보세요.`,
+    hint: `${direction} 방향의 ${category} 계열 장소입니다.`,
   }),
 };
 
-/** Build a template scene. The place name stays hidden until arrival. */
+/** Build a template scene. The place name stays hidden until arrival.
+ *  `direction` is a phrase like "북동쪽으로 약 470m". */
 export function buildTemplateScene(input: {
   type: GeneratedSceneType;
   category: string;
+  direction: string;
   distanceM: number;
   transport: Transport;
 }): SceneDraft {
-  const { type, category, distanceM, transport } = input;
-  const copy = TEMPLATE_COPY[type](category, formatDistance(distanceM), TRANSPORT_LABEL[transport]);
+  const { type, category, direction, distanceM, transport } = input;
+  const copy = TEMPLATE_COPY[type]({
+    category,
+    direction,
+    transportLabel: TRANSPORT_LABEL[transport],
+  });
   return {
     type,
     ...copy,

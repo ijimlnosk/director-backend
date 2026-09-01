@@ -3,6 +3,7 @@ import { outdoorAdvisory } from '../../integrations/weather/advisory.js';
 import { weatherSnapshotSchema } from '../../integrations/weather/weather.types.js';
 import { countJoined, findParticipant } from '../participant/participant.repository.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
+import { directionPhrase } from '../../shared/geo/distance.js';
 import { logger } from '../../shared/logger.js';
 import {
   INDOOR_CATEGORIES,
@@ -50,14 +51,26 @@ interface SceneChoice {
   draft: SceneDraft;
 }
 
+type Anchor = { lat: number; lng: number };
+
 /** No-AI pick: the first shuffled candidate, always a plain MOVE scene. */
-function deterministicChoice(pick: Candidate, transport: SessionContext['transport']): SceneChoice {
+function deterministicChoice(
+  pick: Candidate,
+  anchor: Anchor,
+  transport: SessionContext['transport'],
+): SceneChoice {
   const distanceM = Math.round(pick.distanceM);
   return {
     placeId: pick.placeId,
     distanceM,
     generatedBy: 'template',
-    draft: buildTemplateScene({ type: 'move', category: pick.category, distanceM, transport }),
+    draft: buildTemplateScene({
+      type: 'move',
+      category: pick.category,
+      direction: directionPhrase(anchor, { lat: pick.lat, lng: pick.lng }),
+      distanceM,
+      transport,
+    }),
   };
 }
 
@@ -72,6 +85,7 @@ interface DirectorHints {
 /** Ask the AI Director to choose; fall back to deterministic on any failure. */
 async function chooseScene(
   session: SessionContext,
+  anchor: Anchor,
   remainingMin: number,
   priorSceneCount: number,
   hints: DirectorHints,
@@ -79,7 +93,7 @@ async function chooseScene(
 ): Promise<SceneChoice> {
   const fallbackPick = candidates[0]!;
   if (!aiDirector.enabled) {
-    return deterministicChoice(fallbackPick, session.transport);
+    return deterministicChoice(fallbackPick, anchor, session.transport);
   }
 
   try {
@@ -99,6 +113,7 @@ async function chooseScene(
         placeId: c.placeId,
         category: c.category,
         distanceM: Math.round(c.distanceM),
+        direction: directionPhrase(anchor, { lat: c.lat, lng: c.lng }),
       })),
     });
 
@@ -126,7 +141,7 @@ async function chooseScene(
     };
   } catch (error) {
     logger.warn({ err: error }, 'ai-director: falling back to deterministic pick');
-    return deterministicChoice(fallbackPick, session.transport);
+    return deterministicChoice(fallbackPick, anchor, session.transport);
   }
 }
 
@@ -253,6 +268,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
       : prefs.preferred;
   const choice = await chooseScene(
     session,
+    anchor,
     remainingMin,
     prior.length,
     {
