@@ -8,9 +8,10 @@ import {
   sceneResponse,
   sceneResultResponse,
   skipSceneBody,
+  vetoSceneBody,
 } from './scene.schema.js';
 import { generateNextScene } from './scene.service.js';
-import { completeScene, skipScene } from './scene.resolve.service.js';
+import { completeScene, skipScene, vetoScene } from './scene.resolve.service.js';
 
 export async function sceneRoutes(fastify: FastifyInstance): Promise<void> {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -67,6 +68,25 @@ export async function sceneRoutes(fastify: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const result = await skipScene(request.user.sub, request.params.sceneId, request.body);
+      return reply.code(201).send({ result });
+    },
+  );
+
+  app.post(
+    '/scenes/:sceneId/veto',
+    {
+      schema: {
+        tags: ['scene'],
+        summary: 'Veto a scene\'s place and/or category for this user',
+        security: [{ bearerAuth: [] }],
+        params: sceneIdParams,
+        body: vetoSceneBody,
+        response: { 201: sceneResultResponse },
+      },
+      onRequest: app.authenticate,
+    },
+    async (request, reply) => {
+      const result = await vetoScene(request.user.sub, request.params.sceneId, request.body);
       return reply.code(201).send({ result });
     },
   );

@@ -29,6 +29,13 @@
       "when": 1788226400912,
       "tag": "0003_scene_result_skip_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788232571678,
+      "tag": "0004_veto",
+      "breakpoints": true
     }
   ]
 }

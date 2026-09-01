@@ -101,6 +101,11 @@ export async function listCandidates(
       ${exclude}
       and (v.place_id is null
            or v.last_visited_at < now() - make_interval(days => ${places.cooldownDays}))
+      and not exists (
+        select 1 from veto vt
+        where vt.user_id = ${args.userId}
+          and (vt.place_id = ${places.id} or vt.category = ${places.category})
+      )
     order by "distanceM" asc
     limit ${limit}
   `);

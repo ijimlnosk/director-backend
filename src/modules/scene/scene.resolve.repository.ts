@@ -1,13 +1,14 @@
 import { and, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
-import { places, sceneResults, scenes, sessions } from '../../shared/database/schema.js';
+import { places, sceneResults, scenes, sessions, vetoes } from '../../shared/database/schema.js';
 import type { SceneResultRow } from './scene.schema.js';
 
 export interface SceneForResolve {
   id: string;
   sessionId: string;
   placeId: string | null;
+  placeCategory: string | null;
   hostUserId: string;
   sessionStatus: string;
   placeLat: number | null;
@@ -22,6 +23,7 @@ export async function loadSceneForResolve(sceneId: string): Promise<SceneForReso
     select ${scenes.id} as "id",
            ${scenes.sessionId} as "sessionId",
            ${scenes.placeId} as "placeId",
+           ${places.category} as "placeCategory",
            ${sessions.hostUserId} as "hostUserId",
            ${sessions.status} as "sessionStatus",
            ST_Y(${places.point}::geometry) as "placeLat",
@@ -49,7 +51,7 @@ export async function insertSceneResult(args: {
   sceneId: string;
   userId: string;
   placeId: string | null;
-  outcome: 'arrived' | 'skipped';
+  outcome: 'arrived' | 'skipped' | 'vetoed';
   verifiedBy: 'gps' | 'manual';
   arrivedPoint?: { lat: number; lng: number };
   skipReason: string | null;
@@ -94,4 +96,33 @@ export async function insertSceneResult(args: {
 
     return row!;
   });
+}
+
+/** Record user-scoped vetoes (place and/or category). Idempotent. */
+export async function insertVetoes(args: {
+  userId: string;
+  sceneId: string;
+  placeId: string | null;
+  category: string | null;
+  reason: string | null;
+}): Promise<void> {
+  const rows: (typeof vetoes.$inferInsert)[] = [];
+  if (args.placeId !== null) {
+    rows.push({
+      userId: args.userId,
+      sceneId: args.sceneId,
+      placeId: args.placeId,
+      reason: args.reason,
+    });
+  }
+  if (args.category !== null) {
+    rows.push({
+      userId: args.userId,
+      sceneId: args.sceneId,
+      category: args.category,
+      reason: args.reason,
+    });
+  }
+  if (rows.length === 0) return;
+  await db.insert(vetoes).values(rows).onConflictDoNothing();
 }

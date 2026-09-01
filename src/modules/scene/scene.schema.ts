@@ -28,10 +28,17 @@ export const skipSceneBody = z.object({
 
 export type SkipSceneInput = z.infer<typeof skipSceneBody>;
 
+export const vetoSceneBody = z.object({
+  scope: z.enum(['place', 'category', 'both']),
+  reason: z.string().min(1).max(300).optional(),
+});
+
+export type VetoSceneInput = z.infer<typeof vetoSceneBody>;
+
 export const sceneResultView = z.object({
   id: z.uuid(),
   sceneId: z.uuid(),
-  outcome: z.enum(['arrived', 'skipped', 'timeout']),
+  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed']),
   verifiedBy: z.enum(['gps', 'manual']),
   skipReason: z.string().nullable(),
   elapsedSec: z.number().int(),
@@ -46,7 +53,7 @@ export const sceneResultResponse = z.object({ result: sceneResultView });
 export interface SceneResultRow {
   id: string;
   sceneId: string;
-  outcome: 'arrived' | 'skipped' | 'timeout';
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed';
   verifiedBy: 'gps' | 'manual';
   skipReason: string | null;
   elapsedSec: number;

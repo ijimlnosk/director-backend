@@ -1,6 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean, customType, date, index, integer, jsonb, pgEnum, pgTable,
-  primaryKey, text, timestamp, unique, uuid,
+  primaryKey, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 
 const geography = customType<{
@@ -22,7 +23,9 @@ export const sessionStatusEnum = pgEnum('session_status', [
 ]);
 export const sceneTypeEnum = pgEnum('scene_type', ['move', 'choose', 'photo', 'observe', 'split']);
 export const generatedByEnum = pgEnum('generated_by', ['template', 'llm']);
-export const sceneOutcomeEnum = pgEnum('scene_outcome', ['arrived', 'skipped', 'timeout']);
+export const sceneOutcomeEnum = pgEnum('scene_outcome', [
+  'arrived', 'skipped', 'timeout', 'vetoed',
+]);
 export const verificationMethodEnum = pgEnum('verification_method', ['gps', 'manual']);
 export const participantRoleEnum = pgEnum('participant_role', ['host', 'member']);
 export const participantTeamEnum = pgEnum('participant_team', ['a', 'b']);
@@ -168,3 +171,21 @@ export const visitHistory = pgTable('visit_history', {
   lastVisitedAt: timestamp('last_visited_at', { withTimezone: true }).notNull(),
   visitCount: integer('visit_count').notNull().default(1),
 }, (table) => [primaryKey({ columns: [table.userId, table.placeId] })]);
+
+export const vetoes = pgTable('veto', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  placeId: uuid('place_id').references(() => places.id),
+  category: text('category'),
+  sceneId: uuid('scene_id').references(() => scenes.id),
+  reason: text('reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('veto_user_id_idx').on(table.userId),
+  uniqueIndex('veto_user_place_uq')
+    .on(table.userId, table.placeId)
+    .where(sql`${table.placeId} is not null`),
+  uniqueIndex('veto_user_category_uq')
+    .on(table.userId, table.category)
+    .where(sql`${table.category} is not null`),
+]);

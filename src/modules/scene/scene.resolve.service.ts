@@ -9,6 +9,7 @@ import { haversineM } from '../../shared/geo/distance.js';
 import { ARRIVAL_GEOFENCE_M } from './scene.constants.js';
 import {
   insertSceneResult,
+  insertVetoes,
   loadSceneForResolve,
   sceneResultExists,
   type SceneForResolve,
@@ -18,6 +19,7 @@ import {
   type CompleteSceneInput,
   type SceneResultView,
   type SkipSceneInput,
+  type VetoSceneInput,
 } from './scene.schema.js';
 
 async function loadResolvable(
@@ -95,6 +97,41 @@ export async function skipScene(
     skipReason: body.reason,
     elapsedSec: body.elapsedSec,
     walkedM: body.walkedM,
+  });
+  return toSceneResultView(row);
+}
+
+/** Record a user-scoped veto (place and/or category) and resolve the scene. */
+export async function vetoScene(
+  userId: string,
+  sceneId: string,
+  body: VetoSceneInput,
+): Promise<SceneResultView> {
+  const scene = await loadResolvable(userId, sceneId);
+  if (scene.placeId === null) {
+    throw constraintFailed('Scene has no place to veto');
+  }
+
+  const vetoPlace = body.scope === 'place' || body.scope === 'both';
+  const vetoCategory = body.scope === 'category' || body.scope === 'both';
+
+  await insertVetoes({
+    userId,
+    sceneId,
+    placeId: vetoPlace ? scene.placeId : null,
+    category: vetoCategory ? scene.placeCategory : null,
+    reason: body.reason ?? null,
+  });
+
+  const row = await insertSceneResult({
+    sceneId,
+    userId,
+    placeId: null,
+    outcome: 'vetoed',
+    verifiedBy: 'manual',
+    skipReason: null,
+    elapsedSec: 0,
+    walkedM: 0,
   });
   return toSceneResultView(row);
 }
