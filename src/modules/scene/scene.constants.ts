@@ -1,11 +1,14 @@
 export type Transport = 'walk' | 'transit' | 'car';
 
-/** How far we look for candidate places, by transport mode (metres). */
+/** Upper bound on how far the next place can be, by transport mode (metres). */
 export const SEARCH_RADIUS_M: Record<Transport, number> = {
   walk: 1500,
   transit: 5000,
   car: 15_000,
 };
+
+/** Fraction of the remaining session time budgeted for reaching the next place. */
+export const PER_HOP_TRAVEL_FRACTION = 0.35;
 
 /** Rough door-to-door travel speed, by transport mode (metres per minute). */
 export const TRAVEL_SPEED_M_PER_MIN: Record<Transport, number> = {

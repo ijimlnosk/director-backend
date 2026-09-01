@@ -1,11 +1,6 @@
 import { aiDirector } from '../../integrations/ai/index.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
-import {
-  MIN_STEP_M,
-  RECENT_CATEGORY_WINDOW,
-  SAME_SPOT_M,
-  SEARCH_RADIUS_M,
-} from './scene.constants.js';
+import { MIN_STEP_M, RECENT_CATEGORY_WINDOW, SAME_SPOT_M } from './scene.constants.js';
 import {
   insertNextScene,
   lastSceneAnchor,
@@ -16,7 +11,12 @@ import {
   type Candidate,
   type SessionContext,
 } from './scene.repository.js';
-import { buildMoveScene, estimateTimeLimitMin, type MoveSceneDraft } from './scene.templates.js';
+import {
+  buildMoveScene,
+  estimateTimeLimitMin,
+  hopRadiusM,
+  type MoveSceneDraft,
+} from './scene.templates.js';
 import { toSceneView, type SceneView } from './scene.schema.js';
 
 const SCENE_GENERATABLE_STATUS = new Set(['active']);
@@ -138,7 +138,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     areaId: session.areaId,
     anchorLat: anchor.lat,
     anchorLng: anchor.lng,
-    radiusM: SEARCH_RADIUS_M[session.transport],
+    radiusM: hopRadiusM(session.transport, Math.max(remainingMin, 0)),
     minStepM: MIN_STEP_M[session.transport],
     excludePlaceIds: usedPlaceIds,
     avoidPoints,

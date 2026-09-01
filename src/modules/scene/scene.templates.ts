@@ -1,10 +1,24 @@
 import { formatDistance } from '../../shared/geo/distance.js';
 import {
+  MIN_STEP_M,
   MIN_TIME_LIMIT_MIN,
+  PER_HOP_TRAVEL_FRACTION,
+  SEARCH_RADIUS_M,
   TIME_LIMIT_BUFFER_MIN,
   TRAVEL_SPEED_M_PER_MIN,
   type Transport,
 } from './scene.constants.js';
+
+/**
+ * How far the next place may be: what the transport covers in a fraction of the
+ * remaining session time, clamped between a sensible floor and the mode ceiling.
+ * Shrinks as the session runs down.
+ */
+export function hopRadiusM(transport: Transport, remainingMin: number): number {
+  const budget = remainingMin * PER_HOP_TRAVEL_FRACTION * TRAVEL_SPEED_M_PER_MIN[transport];
+  const floor = MIN_STEP_M[transport] * 3;
+  return Math.round(Math.min(SEARCH_RADIUS_M[transport], Math.max(floor, budget)));
+}
 
 export interface MoveSceneDraft {
   type: 'move';
