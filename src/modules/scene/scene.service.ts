@@ -1,4 +1,5 @@
 import { aiDirector } from '../../integrations/ai/index.js';
+import { countJoined, findParticipant } from '../participant/participant.repository.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { MIN_STEP_M, RECENT_CATEGORY_WINDOW, SAME_SPOT_M } from './scene.constants.js';
 import {
@@ -109,12 +110,14 @@ async function chooseScene(
   }
 }
 
-async function assertSceneOwner(userId: string, sessionId: string): Promise<void> {
+async function assertSceneReader(userId: string, sessionId: string): Promise<void> {
   const session = await loadSessionContext(sessionId);
   if (session === undefined) {
     throw notFound('session');
   }
-  if (session.hostUserId !== userId) {
+  if (session.hostUserId === userId) return;
+  const me = await findParticipant(sessionId, userId);
+  if (me === undefined || me.state !== 'joined') {
     throw forbidden('You do not have access to this session');
   }
 }
@@ -124,7 +127,7 @@ export async function listSessionScenes(
   userId: string,
   sessionId: string,
 ): Promise<SceneListItem[]> {
-  await assertSceneOwner(userId, sessionId);
+  await assertSceneReader(userId, sessionId);
   return (await listSceneRows(sessionId)).map(toSceneListItem);
 }
 
@@ -133,7 +136,7 @@ export async function getCurrentScene(
   userId: string,
   sessionId: string,
 ): Promise<SceneView | null> {
-  await assertSceneOwner(userId, sessionId);
+  await assertSceneReader(userId, sessionId);
   const row = await currentSceneRow(sessionId);
   return row === undefined ? null : toSceneView(row);
 }
@@ -151,9 +154,10 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     throw conflict(`Session is ${session.status}; start the session before requesting a scene`);
   }
 
-  const unresolved = await unresolvedSceneSeq(sessionId);
+  const resolverCount = Math.max(await countJoined(sessionId), 1);
+  const unresolved = await unresolvedSceneSeq(sessionId, resolverCount);
   if (unresolved !== undefined) {
-    throw conflict(`Scene ${unresolved} is still open; resolve it before requesting the next`);
+    throw conflict(`Scene ${unresolved} is still open; every participant must resolve it first`);
   }
 
   const prior = await priorScenes(sessionId);

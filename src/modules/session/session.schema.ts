@@ -29,6 +29,7 @@ export const sessionView = z.object({
   transport: z.enum(['walk', 'transit', 'car']),
   origin: z.object({ lat: z.number(), lng: z.number() }),
   areaId: z.uuid(),
+  inviteCode: z.string().nullable(),
   weather: weatherSnapshotSchema.nullable(),
   startedAt: z.string().nullable(),
   endedAt: z.string().nullable(),
@@ -70,6 +71,7 @@ export interface SessionRow {
   lat: number;
   lng: number;
   areaId: string;
+  inviteCode: string | null;
   weatherSnapshot: unknown;
   startedAt: Date | null;
   endedAt: Date | null;
@@ -87,6 +89,7 @@ export function toSessionView(row: SessionRow): SessionView {
     transport: row.transport,
     origin: { lat: row.lat, lng: row.lng },
     areaId: row.areaId,
+    inviteCode: row.inviteCode,
     weather: weather.success ? weather.data : null,
     startedAt: row.startedAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,

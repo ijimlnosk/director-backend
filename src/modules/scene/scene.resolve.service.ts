@@ -26,18 +26,18 @@ async function loadResolvable(
   userId: string,
   sceneId: string,
 ): Promise<SceneForResolve> {
-  const scene = await loadSceneForResolve(sceneId);
+  const scene = await loadSceneForResolve(sceneId, userId);
   if (scene === undefined) {
     throw notFound('scene');
   }
-  if (scene.hostUserId !== userId) {
-    throw forbidden('You do not have access to this scene');
+  if (!scene.canResolve) {
+    throw forbidden('You are not a participant of this session');
   }
   if (scene.sessionStatus !== 'active') {
     throw conflict(`Session is ${scene.sessionStatus}; scene cannot be resolved`);
   }
   if (await sceneResultExists(sceneId, userId)) {
-    throw conflict('Scene is already resolved');
+    throw conflict('You have already resolved this scene');
   }
   return scene;
 }

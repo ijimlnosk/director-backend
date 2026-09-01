@@ -1,6 +1,12 @@
 import { WeatherProviderError, weatherProvider, type WeatherSnapshot } from '../../integrations/weather/index.js';
 import { AppError, conflict, notFound } from '../../shared/errors/app-error.js';
+import { randomInt } from 'node:crypto';
+
 import { runStartChecks, type StartChecks } from './session.checks.js';
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newInviteCode = (): string =>
+  Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 import {
   toSessionListItem,
   toSessionView,
@@ -27,7 +33,8 @@ export async function createDraftSession(
   if (!(await areaExists(input.areaId))) {
     throw notFound('area');
   }
-  const row = await insertDraftSession(userId, input);
+  const inviteCode = input.mode === 'solo' ? null : newInviteCode();
+  const row = await insertDraftSession(userId, input, inviteCode);
   return toSessionView(row);
 }
 

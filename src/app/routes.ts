@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { areaRoutes } from '../modules/area/area.routes.js';
 import { cutRoutes } from '../modules/cut/cut.routes.js';
 import { feedbackRoutes } from '../modules/feedback/feedback.routes.js';
+import { participantRoutes } from '../modules/participant/participant.routes.js';
 import { photoRoutes } from '../modules/photo/photo.routes.js';
 import { sceneRoutes } from '../modules/scene/scene.routes.js';
 import { sessionRoutes } from '../modules/session/session.routes.js';
@@ -13,6 +14,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(userRoutes);
   await app.register(areaRoutes);
   await app.register(sessionRoutes);
+  await app.register(participantRoutes);
   await app.register(sceneRoutes);
   await app.register(photoRoutes);
   await app.register(feedbackRoutes);

@@ -177,16 +177,20 @@ export async function softCategoryPreferences(
   };
 }
 
-/** Seq of the most recent scene that has no scene_result yet, if any. */
-export async function unresolvedSceneSeq(sessionId: string): Promise<number | undefined> {
-  const rows = await db
-    .select({ seq: scenes.seq })
-    .from(scenes)
-    .leftJoin(sceneResults, eq(sceneResults.sceneId, scenes.id))
-    .where(and(eq(scenes.sessionId, sessionId), isNull(sceneResults.id)))
-    .orderBy(desc(scenes.seq))
-    .limit(1);
-  return rows[0]?.seq;
+/** Seq of the latest scene not yet resolved by every participant (`resolverCount`). */
+export async function unresolvedSceneSeq(
+  sessionId: string,
+  resolverCount: number,
+): Promise<number | undefined> {
+  const rows = await db.execute(sql`
+    select s.seq as "seq"
+    from ${scenes} s
+    where s.session_id = ${sessionId}
+      and (select count(*) from ${sceneResults} r where r.scene_id = s.id) < ${resolverCount}
+    order by s.seq desc
+    limit 1
+  `);
+  return (rows as unknown as { seq: number }[])[0]?.seq;
 }
 
 /**

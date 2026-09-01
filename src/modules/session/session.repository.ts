@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
-import { areas, scenes, sessions } from '../../shared/database/schema.js';
+import { areas, participants, scenes, sessions } from '../../shared/database/schema.js';
 import type { WeatherSnapshot } from '../../integrations/weather/weather.types.js';
 import type { CreateSessionInput, ListSessionsQuery, SessionRow } from './session.schema.js';
 
@@ -20,6 +20,7 @@ const ROW_SELECT = {
   lat: sql<number>`ST_Y(${sessions.originPoint}::geometry)`.as('lat'),
   lng: sql<number>`ST_X(${sessions.originPoint}::geometry)`.as('lng'),
   areaId: sessions.areaId,
+  inviteCode: sessions.inviteCode,
   weatherSnapshot: sessions.weatherSnapshot,
   startedAt: sessions.startedAt,
   endedAt: sessions.endedAt,
@@ -67,22 +68,35 @@ export async function visitedPlacesInArea(
 export async function insertDraftSession(
   hostUserId: string,
   input: CreateSessionInput,
+  inviteCode: string | null,
 ): Promise<SessionRow> {
-  const [row] = await db
-    .insert(sessions)
-    .values({
-      hostUserId,
-      mode: input.mode,
-      mood: input.mood ?? null,
-      durationMin: input.durationMin,
-      budgetKrw: input.budgetKrw ?? null,
-      transport: input.transport,
-      originPoint: point(input.origin.lng, input.origin.lat),
-      areaId: input.areaId,
-    })
-    .returning(ROW_SELECT);
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(sessions)
+      .values({
+        hostUserId,
+        mode: input.mode,
+        mood: input.mood ?? null,
+        durationMin: input.durationMin,
+        budgetKrw: input.budgetKrw ?? null,
+        transport: input.transport,
+        originPoint: point(input.origin.lng, input.origin.lat),
+        areaId: input.areaId,
+        inviteCode,
+      })
+      .returning(ROW_SELECT);
 
-  return row!;
+    if (inviteCode !== null) {
+      await tx.insert(participants).values({
+        sessionId: row!.id,
+        userId: hostUserId,
+        role: 'host',
+        state: 'joined',
+        joinedAt: new Date(),
+      });
+    }
+    return row!;
+  });
 }
 
 export async function findSessionById(id: string): Promise<SessionRow | undefined> {

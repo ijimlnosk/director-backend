@@ -1,7 +1,14 @@
 import { and, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
-import { places, sceneResults, scenes, sessions, vetoes } from '../../shared/database/schema.js';
+import {
+  participants,
+  places,
+  sceneResults,
+  scenes,
+  sessions,
+  vetoes,
+} from '../../shared/database/schema.js';
 import type { SceneResultRow } from './scene.schema.js';
 
 export interface SceneForResolve {
@@ -11,6 +18,8 @@ export interface SceneForResolve {
   placeCategory: string | null;
   hostUserId: string;
   sessionStatus: string;
+  /** The caller is the host or a joined participant. */
+  canResolve: boolean;
   placeLat: number | null;
   placeLng: number | null;
 }
@@ -18,7 +27,10 @@ export interface SceneForResolve {
 const geo = (lng: number, lat: number) =>
   sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
 
-export async function loadSceneForResolve(sceneId: string): Promise<SceneForResolve | undefined> {
+export async function loadSceneForResolve(
+  sceneId: string,
+  userId: string,
+): Promise<SceneForResolve | undefined> {
   const rows = await db.execute(sql`
     select ${scenes.id} as "id",
            ${scenes.sessionId} as "sessionId",
@@ -26,11 +38,15 @@ export async function loadSceneForResolve(sceneId: string): Promise<SceneForReso
            ${places.category} as "placeCategory",
            ${sessions.hostUserId} as "hostUserId",
            ${sessions.status} as "sessionStatus",
+           (${sessions.hostUserId} = ${userId} or ${participants.userId} is not null) as "canResolve",
            ST_Y(${places.point}::geometry) as "placeLat",
            ST_X(${places.point}::geometry) as "placeLng"
     from ${scenes}
     join ${sessions} on ${sessions.id} = ${scenes.sessionId}
     left join ${places} on ${places.id} = ${scenes.placeId}
+    left join ${participants} on ${participants.sessionId} = ${scenes.sessionId}
+      and ${participants.userId} = ${userId}
+      and ${participants.state} = 'joined'
     where ${scenes.id} = ${sceneId}
     limit 1
   `);
