@@ -12,7 +12,7 @@ import {
 import { excludePlaceIdsSql } from './scene.candidates.js';
 import type { Purpose, Transport } from './scene.constants.js';
 import type { SceneDraft } from './scene.templates.js';
-import type { SceneListRow, SceneRow } from './scene.schema.js';
+import type { ParkingSpot, SceneListRow, SceneRow } from './scene.schema.js';
 
 const SCENE_ROW_SQL = sql`
   ${scenes.id} as "id",
@@ -25,6 +25,7 @@ const SCENE_ROW_SQL = sql`
   ${scenes.distanceM} as "distanceM",
   ${scenes.timeLimitMin} as "timeLimitMin",
   ${scenes.extendedMin} as "extendedMin",
+  ${scenes.parking} as "parking",
   ${scenes.revealNameAfterArrival} as "revealNameAfterArrival",
   ${scenes.createdAt} as "createdAt",
   ST_Y(${places.point}::geometry) as "targetLat",
@@ -306,6 +307,7 @@ export async function insertNextScene(args: {
   placeId: string;
   distanceM: number;
   generatedBy: 'template' | 'llm';
+  parking: ParkingSpot[] | null;
 }): Promise<SceneRow> {
   return db.transaction(async (tx) => {
     const [seqRow] = await tx
@@ -326,6 +328,7 @@ export async function insertNextScene(args: {
         placeId: args.placeId,
         distanceM: args.distanceM,
         timeLimitMin: args.draft.timeLimitMin,
+        parking: args.parking,
         revealNameAfterArrival: args.draft.revealNameAfterArrival,
         generatedBy: args.generatedBy,
       })
@@ -354,6 +357,6 @@ export async function insertNextScene(args: {
       coordRows as unknown as { targetLat: number; targetLng: number }[]
     )[0]!;
 
-    return { ...inserted!, targetLat, targetLng };
+    return { ...inserted!, targetLat, targetLng, parking: args.parking };
   });
 }

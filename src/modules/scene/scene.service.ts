@@ -30,6 +30,7 @@ import {
   type Candidate,
   type SessionContext,
 } from './scene.repository.js';
+import { findParkingNear } from './scene.parking.js';
 import {
   buildTemplateScene,
   estimateTimeLimitMin,
@@ -300,12 +301,20 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     });
   }
 
+  // Driving sessions: offer trusted parking near the destination.
+  const chosenCandidate = candidates.find((c) => c.placeId === choice.placeId);
+  const parking =
+    session.transport === 'car' && chosenCandidate !== undefined
+      ? await findParkingNear({ lat: chosenCandidate.lat, lng: chosenCandidate.lng })
+      : null;
+
   const row = await insertNextScene({
     sessionId,
     draft: choice.draft,
     placeId: choice.placeId,
     distanceM: choice.distanceM,
     generatedBy: choice.generatedBy,
+    parking,
   });
   return toSceneView(row);
 }

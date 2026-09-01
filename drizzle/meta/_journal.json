@@ -92,6 +92,13 @@
       "when": 1788271513932,
       "tag": "0012_photo_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788272005790,
+      "tag": "0013_scene_parking",
+      "breakpoints": true
     }
   ]
 }

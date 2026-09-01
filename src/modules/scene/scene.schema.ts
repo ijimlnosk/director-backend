@@ -75,6 +75,16 @@ export function toSceneResultView(row: SceneResultRow): SceneResultView {
   };
 }
 
+export const parkingSpot = z.object({
+  name: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+  distanceM: z.number().int(),
+  address: z.string().nullable(),
+});
+
+export type ParkingSpot = z.infer<typeof parkingSpot>;
+
 export const sceneView = z.object({
   id: z.uuid(),
   sessionId: z.uuid(),
@@ -88,6 +98,8 @@ export const sceneView = z.object({
   extendedMin: z.number().int(),
   revealNameAfterArrival: z.boolean(),
   target: z.object({ lat: z.number(), lng: z.number() }),
+  /** Nearby parking for driving sessions; null otherwise. */
+  parking: z.array(parkingSpot).nullable(),
   createdAt: z.string(),
   /** Server-authoritative deadline: createdAt + timeLimitMin. */
   expiresAt: z.string(),
@@ -111,6 +123,7 @@ export interface SceneRow {
   revealNameAfterArrival: boolean;
   targetLat: number;
   targetLng: number;
+  parking: ParkingSpot[] | null;
   createdAt: Date;
 }
 
@@ -155,6 +168,7 @@ export function toSceneView(row: SceneRow): SceneView {
     extendedMin: row.extendedMin,
     revealNameAfterArrival: row.revealNameAfterArrival,
     target: { lat: row.targetLat, lng: row.targetLng },
+    parking: row.parking ?? null,
     createdAt: row.createdAt.toISOString(),
     expiresAt: new Date(row.createdAt.getTime() + row.timeLimitMin * 60_000).toISOString(),
   };

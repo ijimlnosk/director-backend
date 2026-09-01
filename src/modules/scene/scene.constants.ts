@@ -82,6 +82,15 @@ export const CANDIDATE_POOL_SIZE = 60;
 /** How close a GPS fix must be to the target to count as an arrival (metres). */
 export const ARRIVAL_GEOFENCE_M = 75;
 
+/** Kakao category_group_code for parking lots. */
+export const KAKAO_PARKING_GROUP = 'PK6';
+
+/** How far from a driving scene's destination to look for parking (metres). */
+export const PARKING_SEARCH_RADIUS_M = 500;
+
+/** Most parking spots returned with a driving scene. */
+export const PARKING_RESULT_LIMIT = 3;
+
 export const SKIP_REASONS = [
   'too_far',
   'not_interested',
