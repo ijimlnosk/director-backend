@@ -14,6 +14,10 @@ export interface DirectorRequest {
   priorSceneCount: number;
   /** Categories of the last few scenes; the Director should vary away from these. */
   recentCategories: string[];
+  /** Categories the player tends to enjoy - lean toward these. */
+  preferredCategories: string[];
+  /** Categories the player tends to dislike - use only as a last resort. */
+  avoidedCategories: string[];
   candidates: DirectorCandidate[];
 }
 

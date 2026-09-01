@@ -57,6 +57,13 @@
       "when": 1788239936258,
       "tag": "0007_photo_upload_flow",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788254176578,
+      "tag": "0008_feedback_preferences",
+      "breakpoints": true
     }
   ]
 }

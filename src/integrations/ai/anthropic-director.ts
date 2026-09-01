@@ -21,6 +21,8 @@ const SYSTEM_PROMPT = [
   '- Keep the choice feasible for the given transport and remaining minutes; prefer closer places when time is short.',
   '- mood "chill": favour nearby, low-effort, relaxed places. mood "adventurous": favour the more unusual or farther options within reach. mood null: no preference.',
   '- recentCategories lists what the player just did; pick a different category when a reasonable candidate exists, so the outing stays varied.',
+  '- preferredCategories: lean toward a candidate in one of these when the choice is otherwise close.',
+  '- avoidedCategories: pick a candidate in one of these only when nothing else is reasonable.',
   'Answer only by calling the submit_scene tool.',
 ].join('\n');
 

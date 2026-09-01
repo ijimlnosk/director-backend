@@ -185,6 +185,23 @@ export const visitHistory = pgTable('visit_history', {
   visitCount: integer('visit_count').notNull().default(1),
 }, (table) => [primaryKey({ columns: [table.userId, table.placeId] })]);
 
+export const sessionFeedback = pgTable('session_feedback', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sessionId: uuid('session_id').notNull().references(() => sessions.id).unique(),
+  rating: integer('rating').notNull(),
+  funLevel: integer('fun_level'),
+  distanceFeel: text('distance_feel'),
+  difficultyFeel: text('difficulty_feel'),
+  freeText: text('free_text'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const userPreferences = pgTable('user_preference', {
+  userId: uuid('user_id').notNull().references(() => users.id),
+  category: text('category').notNull(),
+  weight: integer('weight').notNull(),
+}, (table) => [primaryKey({ columns: [table.userId, table.category] })]);
+
 export const vetoes = pgTable('veto', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id),

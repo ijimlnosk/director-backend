@@ -1,7 +1,13 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
-import { places, sceneResults, scenes, sessions } from '../../shared/database/schema.js';
+import {
+  places,
+  sceneResults,
+  scenes,
+  sessions,
+  userPreferences,
+} from '../../shared/database/schema.js';
 import { excludePlaceIdsSql } from './scene.candidates.js';
 import type { Transport } from './scene.constants.js';
 import type { MoveSceneDraft } from './scene.templates.js';
@@ -138,6 +144,37 @@ export async function lastSceneAnchor(
   const row = (rows as unknown as { lat: number | null; lng: number | null }[])[0];
   if (row === undefined || row.lat === null || row.lng === null) return undefined;
   return { lat: row.lat, lng: row.lng };
+}
+
+/** Soft category signals for the Director: explicit likes, and dislikes
+ *  (explicit + categories skipped "not_interested" at least twice). */
+export async function softCategoryPreferences(
+  userId: string,
+): Promise<{ preferred: string[]; avoided: string[] }> {
+  const explicit = await db
+    .select({ category: userPreferences.category, weight: userPreferences.weight })
+    .from(userPreferences)
+    .where(eq(userPreferences.userId, userId));
+
+  const behavioural = await db.execute(sql`
+    select p.category as "category"
+    from scene_result r
+    join scene s on s.id = r.scene_id
+    join place p on p.id = s.place_id
+    where r.user_id = ${userId}
+      and r.outcome = 'skipped'
+      and r.skip_reason = 'not_interested'
+    group by p.category
+    having count(*) >= 2
+  `);
+
+  const avoided = new Set(explicit.filter((r) => r.weight < 0).map((r) => r.category));
+  for (const row of behavioural as unknown as { category: string }[]) avoided.add(row.category);
+
+  return {
+    preferred: explicit.filter((r) => r.weight > 0).map((r) => r.category),
+    avoided: [...avoided],
+  };
 }
 
 /** Seq of the most recent scene that has no scene_result yet, if any. */

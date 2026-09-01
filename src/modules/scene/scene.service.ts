@@ -9,6 +9,7 @@ import {
   listSceneRows,
   loadSessionContext,
   priorScenes,
+  softCategoryPreferences,
   unresolvedSceneSeq,
   type Candidate,
   type SessionContext,
@@ -47,11 +48,17 @@ function deterministicChoice(pick: Candidate, transport: SessionContext['transpo
 }
 
 /** Ask the AI Director to choose; fall back to deterministic on any failure. */
+interface DirectorHints {
+  recentCategories: string[];
+  preferredCategories: string[];
+  avoidedCategories: string[];
+}
+
 async function chooseScene(
   session: SessionContext,
   remainingMin: number,
   priorSceneCount: number,
-  recentCategories: string[],
+  hints: DirectorHints,
   candidates: Candidate[],
 ): Promise<SceneChoice> {
   const fallbackPick = candidates[0]!;
@@ -66,7 +73,9 @@ async function chooseScene(
       transport: session.transport,
       remainingMin,
       priorSceneCount,
-      recentCategories,
+      recentCategories: hints.recentCategories,
+      preferredCategories: hints.preferredCategories,
+      avoidedCategories: hints.avoidedCategories,
       candidates: candidates.map((c) => ({
         placeId: c.placeId,
         category: c.category,
@@ -185,7 +194,18 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     throw constraintFailed('No eligible place found for the next scene');
   }
 
-  const choice = await chooseScene(session, remainingMin, prior.length, recentCategories, candidates);
+  const prefs = await softCategoryPreferences(userId);
+  const choice = await chooseScene(
+    session,
+    remainingMin,
+    prior.length,
+    {
+      recentCategories,
+      preferredCategories: prefs.preferred,
+      avoidedCategories: prefs.avoided,
+    },
+    candidates,
+  );
 
   // Final deterministic check: the scene must fit the remaining session time.
   if (choice.draft.timeLimitMin > remainingMin) {
