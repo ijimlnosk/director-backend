@@ -1,4 +1,5 @@
 import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
@@ -13,6 +14,7 @@ import {
 } from 'fastify-type-provider-zod';
 
 import { env } from '../shared/config/env.js';
+import { storage } from '../integrations/storage/index.js';
 import { db } from '../shared/database/client.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandler } from './plugins/error-handler.js';
@@ -31,13 +33,15 @@ export async function buildApp(): Promise<FastifyInstance> {
     throwFileSizeLimit: false,
   });
 
-  await mkdir(env.MEDIA_DIR, { recursive: true });
-  await app.register(fastifyStatic, {
-    root: env.MEDIA_DIR,
-    prefix: '/media/',
-    decorateReply: false,
-    index: false,
-  });
+  if (storage.kind === 'local') {
+    await mkdir(env.MEDIA_DIR, { recursive: true });
+    await app.register(fastifyStatic, {
+      root: resolve(env.MEDIA_DIR),
+      prefix: '/media/',
+      decorateReply: false,
+      index: false,
+    });
+  }
 
   await app.register(fastifySwagger, {
     openapi: {

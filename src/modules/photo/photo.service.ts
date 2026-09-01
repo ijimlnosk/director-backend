@@ -56,5 +56,5 @@ export async function attachPhoto(
     width: image.width,
     height: image.height,
   });
-  return toPhotoView(row, storage.urlFor(key));
+  return toPhotoView(row, await storage.urlFor(key));
 }

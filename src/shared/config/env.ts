@@ -21,9 +21,15 @@ const envSchema = z.object({
   KAKAO_REST_API_KEY: optionalString,
   PLACES_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
   ADMIN_TOKEN: optionalString,
-  MEDIA_DIR: z.string().min(1).default('/app/media'),
+  MEDIA_DIR: z.string().min(1).default('media'),
   MEDIA_BASE_URL: z.url().default('http://localhost:3000/media'),
   MEDIA_MAX_BYTES: z.coerce.number().int().positive().max(52_428_800).default(8_388_608),
+  // Object storage (Cloudflare R2). All four set => R2, else local filesystem.
+  R2_ACCOUNT_ID: optionalString,
+  R2_ACCESS_KEY_ID: optionalString,
+  R2_SECRET_ACCESS_KEY: optionalString,
+  R2_BUCKET: optionalString,
+  SIGNED_URL_TTL_SEC: z.coerce.number().int().positive().max(604_800).default(3600),
 });
 
 export const env = envSchema.parse(process.env);

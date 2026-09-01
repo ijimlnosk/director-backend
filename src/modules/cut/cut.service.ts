@@ -16,7 +16,8 @@ async function assembleCutView(sessionId: string, cut: CutRow): Promise<CutView>
     sessionSceneBreakdown(sessionId),
     coverPhoto(sessionId),
   ]);
-  return toCutView(cut, scenes, cover ? storage.urlFor(cover.storageKey) : null);
+  const coverUrl = cover ? await storage.urlFor(cover.storageKey) : null;
+  return toCutView(cut, scenes, coverUrl);
 }
 
 /** End an active session and produce its Cut (End Credits). Idempotent on retry. */

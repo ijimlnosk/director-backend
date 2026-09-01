@@ -34,6 +34,11 @@ services:
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       MEDIA_DIR: /app/media
       MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:3000/media}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      SIGNED_URL_TTL_SEC: ${SIGNED_URL_TTL_SEC:-3600}
     ports:
       - "127.0.0.1:3100:3000"
     volumes:
