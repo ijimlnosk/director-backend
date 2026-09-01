@@ -18,6 +18,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   app.post(
     '/auth/kakao',
     {
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
       schema: {
         tags: ['auth'],
         summary: 'Log in with a Kakao access token (link on first use)',
@@ -34,6 +35,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   app.post(
     '/auth/refresh',
     {
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
       schema: {
         tags: ['auth'],
         summary: 'Exchange a refresh token for a new token pair',
@@ -47,6 +49,7 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
   app.post(
     '/auth/logout',
     {
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
       schema: {
         tags: ['auth'],
         summary: 'Revoke a refresh token',

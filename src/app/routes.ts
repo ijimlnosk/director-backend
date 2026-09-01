@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 
+import { adminRoutes } from '../modules/admin/admin.routes.js';
 import { areaRoutes } from '../modules/area/area.routes.js';
 import { authRoutes } from '../modules/auth/auth.routes.js';
 import { cutRoutes } from '../modules/cut/cut.routes.js';
@@ -15,6 +16,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(userRoutes);
   await app.register(authRoutes);
   await app.register(areaRoutes);
+  await app.register(adminRoutes);
   await app.register(sessionRoutes);
   await app.register(participantRoutes);
   await app.register(sceneRoutes);

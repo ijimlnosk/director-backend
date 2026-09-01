@@ -55,6 +55,19 @@ export function registerErrorHandler(app: FastifyInstance): void {
       } satisfies ErrorBody);
     }
 
+    if (error.statusCode === 429) {
+      return reply.code(429).send({
+        error: { code: 'RATE_LIMITED', message: error.message || 'Too many requests' },
+      } satisfies ErrorBody);
+    }
+
+    // Other framework 4xx (payload too large, unsupported media type, ...).
+    if (typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500) {
+      return reply.code(error.statusCode).send({
+        error: { code: error.code ?? 'REQUEST_ERROR', message: error.message },
+      } satisfies ErrorBody);
+    }
+
     request.log.error(error);
     return reply.code(500).send({
       error: { code: 'INTERNAL', message: 'Internal server error' },

@@ -1,8 +1,7 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import { env } from '../../shared/config/env.js';
-import { AppError } from '../../shared/errors/app-error.js';
+import { requireAdmin } from '../../shared/require-admin.js';
 import {
   areaParams,
   areaResponse,
@@ -14,15 +13,6 @@ import {
 } from './area.schema.js';
 import { ingestAreaPlaces } from './area.service.js';
 import { insertArea, listLiveAreas } from './area.repository.js';
-
-function requireAdmin(request: FastifyRequest): void {
-  if (env.ADMIN_TOKEN === undefined) {
-    throw new AppError('PROVIDER_FAILED', 'Admin operations are disabled (ADMIN_TOKEN unset)');
-  }
-  if (request.headers['x-admin-token'] !== env.ADMIN_TOKEN) {
-    throw new AppError('AUTHENTICATION', 'Invalid admin token');
-  }
-}
 
 export async function areaRoutes(fastify: FastifyInstance): Promise<void> {
   const app = fastify.withTypeProvider<ZodTypeProvider>();

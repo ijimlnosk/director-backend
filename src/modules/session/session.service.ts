@@ -1,12 +1,13 @@
-import { WeatherProviderError, weatherProvider, type WeatherSnapshot } from '../../integrations/weather/index.js';
-import { AppError, conflict, notFound } from '../../shared/errors/app-error.js';
 import { randomInt } from 'node:crypto';
 
+import {
+  WeatherProviderError,
+  weatherProvider,
+  type WeatherSnapshot,
+} from '../../integrations/weather/index.js';
+import { AppError, conflict, notFound } from '../../shared/errors/app-error.js';
+import { logger } from '../../shared/logger.js';
 import { runStartChecks, type StartChecks } from './session.checks.js';
-
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const newInviteCode = (): string =>
-  Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 import {
   toSessionListItem,
   toSessionView,
@@ -24,6 +25,10 @@ import {
   insertDraftSession,
   listSessionsForUser,
 } from './session.repository.js';
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newInviteCode = (): string =>
+  Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
 
 /** Create a DRAFT session owned by the given user. */
 export async function createDraftSession(
@@ -104,8 +109,7 @@ export async function startSession(
     weather = await weatherProvider.current(row.lat, row.lng);
   } catch (error) {
     if (!(error instanceof WeatherProviderError)) throw error;
-    // eslint-disable-next-line no-console -- no shared logger yet; visible in container logs
-    console.warn('[weather] snapshot unavailable, starting without it:', error.message);
+    logger.warn({ err: error }, 'weather: snapshot unavailable, starting without it');
   }
 
   const activated = await activateSession(sessionId, weather);

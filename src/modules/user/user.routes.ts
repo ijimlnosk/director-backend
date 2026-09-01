@@ -26,6 +26,7 @@ export async function userRoutes(fastify: FastifyInstance): Promise<void> {
   app.post(
     '/users',
     {
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
       schema: {
         tags: ['auth'],
         summary: 'Register a device and receive a bearer token',

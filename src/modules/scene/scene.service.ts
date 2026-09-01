@@ -1,6 +1,7 @@
 import { aiDirector } from '../../integrations/ai/index.js';
 import { countJoined, findParticipant } from '../participant/participant.repository.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
+import { logger } from '../../shared/logger.js';
 import {
   MIN_STEP_M,
   PURPOSE_CATEGORIES,
@@ -117,8 +118,7 @@ async function chooseScene(
       },
     };
   } catch (error) {
-    // eslint-disable-next-line no-console -- no shared logger yet; visible in container logs
-    console.warn('[ai-director] falling back to deterministic pick:', error);
+    logger.warn({ err: error }, 'ai-director: falling back to deterministic pick');
     return deterministicChoice(fallbackPick, session.transport);
   }
 }

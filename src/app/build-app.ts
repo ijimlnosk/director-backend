@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
@@ -43,7 +44,22 @@ async function registerLocalMediaUpload(app: FastifyInstance): Promise<void> {
 }
 
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: { level: env.LOG_LEVEL },
+    trustProxy: env.TRUST_PROXY,
+    requestIdHeader: 'x-request-id',
+  });
+
+  app.addHook('onSend', async (request, reply) => {
+    reply.header('x-request-id', request.id);
+  });
+
+  await app.register(fastifyRateLimit, {
+    global: true,
+    max: env.RATE_LIMIT_MAX,
+    timeWindow: '1 minute',
+    allowList: (request) => request.url === '/health' || request.url === '/ready',
+  });
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
