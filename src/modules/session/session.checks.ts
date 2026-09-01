@@ -19,7 +19,6 @@ export const startChecksSchema = z.object({
     }),
     z.object({ available: z.literal(false) }),
   ]),
-  openingHours: z.object({ status: z.literal('not_checked') }),
   recentVisits: z.object({ visitedInArea: z.number().int(), excludedByCooldown: z.number().int() }),
   candidates: z.object({ eligibleCount: z.number().int(), ok: z.boolean() }),
 });
@@ -69,7 +68,6 @@ export async function runStartChecks(input: StartCheckInput): Promise<StartCheck
       input.weather === null
         ? { available: false }
         : { available: true, advisory: outdoorAdvisory(input.weather), snapshot: input.weather },
-    openingHours: { status: 'not_checked' },
     recentVisits: {
       visitedInArea: visits.visited,
       excludedByCooldown: visits.cooledDown,
