@@ -84,6 +84,19 @@ export async function insertPlaces(
   return inserted.length;
 }
 
+export async function setPlaceHours(
+  areaId: string,
+  placeId: string,
+  openHours: unknown,
+): Promise<boolean> {
+  const rows = await db.execute(sql`
+    update place set open_hours = ${JSON.stringify(openHours)}::jsonb
+    where id = ${placeId} and area_id = ${areaId}
+    returning id
+  `);
+  return (rows as unknown as unknown[]).length > 0;
+}
+
 export async function areaIsLive(areaId: string): Promise<boolean> {
   const [row] = await db
     .select({ id: areas.id })

@@ -145,11 +145,18 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     avoidRadiusM: SAME_SPOT_M,
     userId,
   });
-  if (candidates.length === 0) {
+  const openCandidates = candidates.filter((c) => c.openState !== 'closed');
+  if (openCandidates.length === 0) {
     throw constraintFailed('No eligible place found for the next scene');
   }
 
-  const choice = await chooseScene(session, remainingMin, prior.length, recentCategories, candidates);
+  const choice = await chooseScene(
+    session,
+    remainingMin,
+    prior.length,
+    recentCategories,
+    openCandidates,
+  );
 
   // Final deterministic check: the scene must fit the remaining session time.
   if (choice.draft.timeLimitMin > remainingMin) {

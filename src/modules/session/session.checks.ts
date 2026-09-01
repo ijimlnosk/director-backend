@@ -19,7 +19,12 @@ export const startChecksSchema = z.object({
     }),
     z.object({ available: z.literal(false) }),
   ]),
-  openingHours: z.object({ status: z.literal('not_checked') }),
+  openingHours: z.object({
+    status: z.literal('checked'),
+    openNow: z.number().int(),
+    closedNow: z.number().int(),
+    unknown: z.number().int(),
+  }),
   recentVisits: z.object({ visitedInArea: z.number().int(), excludedByCooldown: z.number().int() }),
   candidates: z.object({ eligibleCount: z.number().int(), ok: z.boolean() }),
 });
@@ -62,6 +67,11 @@ export async function runStartChecks(input: StartCheckInput): Promise<StartCheck
     visitedPlacesInArea(input.userId, input.area.id),
   ]);
 
+  const openNow = candidates.filter((c) => c.openState === 'open').length;
+  const closedNow = candidates.filter((c) => c.openState === 'closed').length;
+  const unknown = candidates.filter((c) => c.openState === 'unknown').length;
+  const eligibleCount = openNow + unknown;
+
   return {
     area: input.area,
     range: { transport: input.transport, radiusM },
@@ -69,11 +79,11 @@ export async function runStartChecks(input: StartCheckInput): Promise<StartCheck
       input.weather === null
         ? { available: false }
         : { available: true, advisory: outdoorAdvisory(input.weather), snapshot: input.weather },
-    openingHours: { status: 'not_checked' },
+    openingHours: { status: 'checked', openNow, closedNow, unknown },
     recentVisits: {
       visitedInArea: visits.visited,
       excludedByCooldown: visits.cooledDown,
     },
-    candidates: { eligibleCount: candidates.length, ok: candidates.length > 0 },
+    candidates: { eligibleCount, ok: eligibleCount > 0 },
   };
 }

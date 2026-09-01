@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { env } from '../../shared/config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
+import { notFound } from '../../shared/errors/app-error.js';
 import {
   areaParams,
   areaResponse,
@@ -10,9 +11,12 @@ import {
   createAreaBody,
   ingestPlacesBody,
   ingestPlacesResponse,
+  placeHoursParams,
+  placeHoursResponse,
+  setPlaceHoursBody,
 } from './area.schema.js';
 import { ingestAreaPlaces } from './area.service.js';
-import { insertArea, listLiveAreas } from './area.repository.js';
+import { insertArea, listLiveAreas, setPlaceHours } from './area.repository.js';
 
 function requireAdmin(request: FastifyRequest): void {
   if (env.ADMIN_TOKEN === undefined) {
@@ -69,6 +73,26 @@ export async function areaRoutes(fastify: FastifyInstance): Promise<void> {
     async (request) => {
       requireAdmin(request);
       return ingestAreaPlaces(request.params.areaId, request.body);
+    },
+  );
+
+  app.put(
+    '/areas/:areaId/places/:placeId/hours',
+    {
+      schema: {
+        tags: ['area'],
+        summary: 'Admin: set a place\'s opening hours',
+        params: placeHoursParams,
+        body: setPlaceHoursBody,
+        response: { 200: placeHoursResponse },
+      },
+    },
+    async (request) => {
+      requireAdmin(request);
+      const { areaId, placeId } = request.params;
+      const ok = await setPlaceHours(areaId, placeId, request.body.openHours);
+      if (!ok) throw notFound('place');
+      return { placeId, openHours: request.body.openHours };
     },
   );
 }
