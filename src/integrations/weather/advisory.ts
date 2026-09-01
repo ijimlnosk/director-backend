@@ -1,4 +1,4 @@
-import type { WeatherSnapshot } from '../../integrations/weather/weather.types.js';
+import type { WeatherSnapshot } from './weather.types.js';
 
 /** ok | caution | avoid — a coarse outdoor-safety read of the weather. */
 export function outdoorAdvisory(w: WeatherSnapshot): 'ok' | 'caution' | 'avoid' {

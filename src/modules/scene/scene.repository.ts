@@ -70,6 +70,7 @@ export interface SessionContext {
   durationMin: number;
   originLat: number;
   originLng: number;
+  weatherSnapshot: unknown;
 }
 
 export interface Candidate {
@@ -94,6 +95,7 @@ export async function loadSessionContext(sessionId: string): Promise<SessionCont
            ${sessions.transport} as "transport",
            ${sessions.areaId} as "areaId",
            ${sessions.durationMin} as "durationMin",
+           ${sessions.weatherSnapshot} as "weatherSnapshot",
            ST_Y(${sessions.originPoint}::geometry) as "originLat",
            ST_X(${sessions.originPoint}::geometry) as "originLng"
     from ${sessions}

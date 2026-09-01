@@ -25,6 +25,7 @@ const SYSTEM_PROMPT = [
   '- recentCategories lists what the player just did; pick a different category when a reasonable candidate exists, so the outing stays varied.',
   '- preferredCategories: lean toward a candidate in one of these when the choice is otherwise close.',
   '- avoidedCategories: pick a candidate in one of these only when nothing else is reasonable.',
+  '- weather.advisory "avoid" (thunder/snow): choose an indoor place and keep the trip short. "caution" (rain/wind): prefer an indoor or covered place. Mention the weather briefly in body.',
   'Answer only by calling the submit_scene tool.',
 ].join('\n');
 

@@ -21,6 +21,8 @@ export interface DirectorRequest {
   avoidedCategories: string[];
   /** Scene types the Director may choose for this scene. */
   allowedSceneTypes: ('move' | 'photo' | 'observe')[];
+  /** Current weather read, when known. */
+  weather: { advisory: 'ok' | 'caution' | 'avoid'; summary: string } | null;
   candidates: DirectorCandidate[];
 }
 

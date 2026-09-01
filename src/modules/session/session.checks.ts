@@ -9,7 +9,7 @@ import {
 } from '../scene/scene.constants.js';
 import { listCandidates } from '../scene/scene.repository.js';
 import { hopRadiusM } from '../scene/scene.templates.js';
-import { outdoorAdvisory } from './session.advisory.js';
+import { outdoorAdvisory } from '../../integrations/weather/advisory.js';
 import { sessionView } from './session.schema.js';
 import { visitedPlacesInArea } from './session.repository.js';
 

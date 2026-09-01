@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import type { WeatherSnapshot } from '../../integrations/weather/weather.types.js';
-import { outdoorAdvisory } from './session.advisory.js';
+import { outdoorAdvisory } from '../../integrations/weather/advisory.js';
 
 const base: WeatherSnapshot = {
   fetchedAt: '2026-09-01T00:00:00.000Z',

@@ -28,6 +28,18 @@ export const SCENE_TYPE_EXTRA_MIN: Record<GeneratedSceneType, number> = {
   observe: 8,
 };
 
+export type WeatherAdvisory = 'ok' | 'caution' | 'avoid';
+
+/** `place.category` values that keep the player sheltered in bad weather. */
+export const INDOOR_CATEGORIES = ['문화시설', '서점', '카페', '음식점'];
+
+/** Hop radius is scaled down in poor weather (multiplied by this). */
+export const WEATHER_RADIUS_FACTOR: Record<WeatherAdvisory, number> = {
+  ok: 1,
+  caution: 0.65,
+  avoid: 0.4,
+};
+
 /** Upper bound on how far the next place can be, by transport mode (metres). */
 export const SEARCH_RADIUS_M: Record<Transport, number> = {
   walk: 1500,

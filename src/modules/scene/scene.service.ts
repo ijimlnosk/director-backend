@@ -1,14 +1,19 @@
 import { aiDirector } from '../../integrations/ai/index.js';
+import { outdoorAdvisory } from '../../integrations/weather/advisory.js';
+import { weatherSnapshotSchema } from '../../integrations/weather/weather.types.js';
 import { countJoined, findParticipant } from '../participant/participant.repository.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { logger } from '../../shared/logger.js';
 import {
+  INDOOR_CATEGORIES,
   MIN_STEP_M,
   PURPOSE_CATEGORIES,
   PURPOSE_SCENE_TYPES,
   RECENT_CATEGORY_WINDOW,
   SAME_SPOT_M,
+  WEATHER_RADIUS_FACTOR,
   type GeneratedSceneType,
+  type WeatherAdvisory,
 } from './scene.constants.js';
 import {
   currentSceneRow,
@@ -61,6 +66,7 @@ interface DirectorHints {
   preferredCategories: string[];
   avoidedCategories: string[];
   allowedSceneTypes: GeneratedSceneType[];
+  weather: { advisory: WeatherAdvisory; summary: string } | null;
 }
 
 /** Ask the AI Director to choose; fall back to deterministic on any failure. */
@@ -88,6 +94,7 @@ async function chooseScene(
       preferredCategories: hints.preferredCategories,
       avoidedCategories: hints.avoidedCategories,
       allowedSceneTypes: hints.allowedSceneTypes,
+      weather: hints.weather,
       candidates: candidates.map((c) => ({
         placeId: c.placeId,
         category: c.category,
@@ -190,6 +197,33 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
   ];
   const remainingMin = session.durationMin - prior.reduce((sum, s) => sum + s.timeLimitMin, 0);
 
+  // Weather steers how far and toward what kind of place the next scene goes.
+  const parsedWeather = weatherSnapshotSchema.safeParse(session.weatherSnapshot);
+  const advisory: WeatherAdvisory = parsedWeather.success
+    ? outdoorAdvisory(parsedWeather.data)
+    : 'ok';
+  const weatherHint = parsedWeather.success
+    ? { advisory, summary: parsedWeather.data.summary }
+    : null;
+
+  const purposeCategories = PURPOSE_CATEGORIES[session.purpose];
+  let categories = purposeCategories;
+  if (advisory === 'avoid') {
+    const sheltered =
+      purposeCategories.length === 0
+        ? INDOOR_CATEGORIES
+        : purposeCategories.filter((c) => INDOOR_CATEGORIES.includes(c));
+    categories = sheltered.length > 0 ? sheltered : INDOOR_CATEGORIES;
+  }
+
+  const stepM = MIN_STEP_M[session.transport];
+  const radiusM = Math.max(
+    stepM * 3,
+    Math.round(
+      hopRadiusM(session.transport, Math.max(remainingMin, 0)) * WEATHER_RADIUS_FACTOR[advisory],
+    ),
+  );
+
   // The search moves with the player: last arrival, else session origin.
   const anchor = (await lastSceneAnchor(sessionId)) ?? {
     lat: session.originLat,
@@ -200,12 +234,12 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     areaId: session.areaId,
     anchorLat: anchor.lat,
     anchorLng: anchor.lng,
-    radiusM: hopRadiusM(session.transport, Math.max(remainingMin, 0)),
-    minStepM: MIN_STEP_M[session.transport],
+    radiusM,
+    minStepM: stepM,
     excludePlaceIds: usedPlaceIds,
     avoidPoints,
     avoidRadiusM: SAME_SPOT_M,
-    categories: PURPOSE_CATEGORIES[session.purpose],
+    categories,
     userId,
   });
   if (candidates.length === 0) {
@@ -213,15 +247,20 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
   }
 
   const prefs = await softCategoryPreferences(userId);
+  const preferredCategories =
+    advisory === 'caution'
+      ? [...new Set([...prefs.preferred, ...INDOOR_CATEGORIES])]
+      : prefs.preferred;
   const choice = await chooseScene(
     session,
     remainingMin,
     prior.length,
     {
       recentCategories,
-      preferredCategories: prefs.preferred,
+      preferredCategories,
       avoidedCategories: prefs.avoided,
       allowedSceneTypes: PURPOSE_SCENE_TYPES[session.purpose],
+      weather: weatherHint,
     },
     candidates,
   );
