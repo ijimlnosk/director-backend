@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '../../shared/database/client.js';
 import { areas, places } from '../../shared/database/schema.js';
 import type { PlaceCandidate } from '../../integrations/places/places.types.js';
-import type { AreaView } from './area.schema.js';
+import type { AreaView, CreateAreaInput } from './area.schema.js';
 
 /** Live areas a session can start in, with the polygon centroid. */
 export async function listLiveAreas(): Promise<AreaView[]> {
@@ -19,6 +19,27 @@ export async function listLiveAreas(): Promise<AreaView[]> {
   return (rows as unknown as { id: string; name: string; lat: number; lng: number }[]).map(
     (row) => ({ id: row.id, name: row.name, center: { lat: row.lat, lng: row.lng } }),
   );
+}
+
+/** Create an area whose bounds is a circular buffer around the given centre. */
+export async function insertArea(input: CreateAreaInput): Promise<AreaView> {
+  const rows = await db.execute(sql`
+    insert into ${areas} (name, bounds, is_live)
+    values (
+      ${input.name},
+      ST_Buffer(
+        ST_SetSRID(ST_MakePoint(${input.center.lng}, ${input.center.lat}), 4326)::geography,
+        ${input.radiusM}
+      )::geography,
+      ${input.isLive}
+    )
+    returning id,
+              name,
+              ST_Y(ST_Centroid(bounds)::geometry) as "lat",
+              ST_X(ST_Centroid(bounds)::geometry) as "lng"
+  `);
+  const row = (rows as unknown as { id: string; name: string; lat: number; lng: number }[])[0]!;
+  return { id: row.id, name: row.name, center: { lat: row.lat, lng: row.lng } };
 }
 
 export async function areaCentroid(

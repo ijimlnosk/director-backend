@@ -1,16 +1,27 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { env } from '../../shared/config/env.js';
 import { AppError } from '../../shared/errors/app-error.js';
 import {
   areaParams,
+  areaResponse,
   areasResponse,
+  createAreaBody,
   ingestPlacesBody,
   ingestPlacesResponse,
 } from './area.schema.js';
 import { ingestAreaPlaces } from './area.service.js';
-import { listLiveAreas } from './area.repository.js';
+import { insertArea, listLiveAreas } from './area.repository.js';
+
+function requireAdmin(request: FastifyRequest): void {
+  if (env.ADMIN_TOKEN === undefined) {
+    throw new AppError('PROVIDER_FAILED', 'Admin operations are disabled (ADMIN_TOKEN unset)');
+  }
+  if (request.headers['x-admin-token'] !== env.ADMIN_TOKEN) {
+    throw new AppError('AUTHENTICATION', 'Invalid admin token');
+  }
+}
 
 export async function areaRoutes(fastify: FastifyInstance): Promise<void> {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -28,6 +39,23 @@ export async function areaRoutes(fastify: FastifyInstance): Promise<void> {
   );
 
   app.post(
+    '/areas',
+    {
+      schema: {
+        tags: ['area'],
+        summary: 'Admin: create an area as a circular buffer around a centre point',
+        body: createAreaBody,
+        response: { 201: areaResponse },
+      },
+    },
+    async (request, reply) => {
+      requireAdmin(request);
+      const area = await insertArea(request.body);
+      return reply.code(201).send({ area });
+    },
+  );
+
+  app.post(
     '/areas/:areaId/places/ingest',
     {
       schema: {
@@ -39,12 +67,7 @@ export async function areaRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request) => {
-      if (env.ADMIN_TOKEN === undefined) {
-        throw new AppError('PROVIDER_FAILED', 'Admin operations are disabled (ADMIN_TOKEN unset)');
-      }
-      if (request.headers['x-admin-token'] !== env.ADMIN_TOKEN) {
-        throw new AppError('AUTHENTICATION', 'Invalid admin token');
-      }
+      requireAdmin(request);
       return ingestAreaPlaces(request.params.areaId, request.body);
     },
   );
