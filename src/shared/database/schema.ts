@@ -71,9 +71,15 @@ export const places = pgTable('place', {
   priceBand: priceBandEnum('price_band').notNull(),
   partnerStatus: partnerStatusEnum('partner_status').notNull().default('none'),
   cooldownDays: integer('cooldown_days').notNull().default(0),
+  provider: text('provider').notNull().default('seed'),
+  providerPlaceId: text('provider_place_id'),
+  address: text('address'),
 }, (table) => [
   index('place_area_id_idx').on(table.areaId),
   index('place_point_gist_idx').using('gist', table.point),
+  uniqueIndex('place_provider_ref_uq')
+    .on(table.provider, table.providerPlaceId)
+    .where(sql`${table.providerPlaceId} is not null`),
 ]);
 
 export const sessions = pgTable('session', {

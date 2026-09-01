@@ -18,6 +18,9 @@ const envSchema = z.object({
   AI_MODEL: z.string().default('claude-opus-5'),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(8000),
   WEATHER_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
+  KAKAO_REST_API_KEY: optionalString,
+  PLACES_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
+  ADMIN_TOKEN: optionalString,
 });
 
 export const env = envSchema.parse(process.env);
