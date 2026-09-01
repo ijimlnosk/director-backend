@@ -50,15 +50,49 @@ export async function loadSessionContext(sessionId: string): Promise<SessionCont
   return (rows as unknown as SessionContext[])[0];
 }
 
-/** Prior scenes of a session, ordered by seq. */
-export async function priorScenes(
+export interface PriorScene {
+  placeId: string | null;
+  category: string | null;
+  timeLimitMin: number;
+  lat: number | null;
+  lng: number | null;
+}
+
+/** Prior scenes of a session with their place location and category, by seq. */
+export async function priorScenes(sessionId: string): Promise<PriorScene[]> {
+  const rows = await db.execute(sql`
+    select ${scenes.placeId} as "placeId",
+           ${places.category} as "category",
+           ${scenes.timeLimitMin} as "timeLimitMin",
+           ST_Y(${places.point}::geometry) as "lat",
+           ST_X(${places.point}::geometry) as "lng"
+    from ${scenes}
+    left join ${places} on ${places.id} = ${scenes.placeId}
+    where ${scenes.sessionId} = ${sessionId}
+    order by ${scenes.seq}
+  `);
+  return rows as unknown as PriorScene[];
+}
+
+/** Where the player is now: last arrival point, else last scene's place. */
+export async function lastSceneAnchor(
   sessionId: string,
-): Promise<{ placeId: string | null; timeLimitMin: number }[]> {
-  return db
-    .select({ placeId: scenes.placeId, timeLimitMin: scenes.timeLimitMin })
-    .from(scenes)
-    .where(eq(scenes.sessionId, sessionId))
-    .orderBy(scenes.seq);
+): Promise<{ lat: number; lng: number } | undefined> {
+  const rows = await db.execute(sql`
+    select coalesce(ST_Y(${sceneResults.arrivedPoint}::geometry),
+                    ST_Y(${places.point}::geometry)) as "lat",
+           coalesce(ST_X(${sceneResults.arrivedPoint}::geometry),
+                    ST_X(${places.point}::geometry)) as "lng"
+    from ${scenes}
+    left join ${sceneResults} on ${sceneResults.sceneId} = ${scenes.id}
+    left join ${places} on ${places.id} = ${scenes.placeId}
+    where ${scenes.sessionId} = ${sessionId}
+    order by ${scenes.seq} desc
+    limit 1
+  `);
+  const row = (rows as unknown as { lat: number | null; lng: number | null }[])[0];
+  if (row === undefined || row.lat === null || row.lng === null) return undefined;
+  return { lat: row.lat, lng: row.lng };
 }
 
 /** Seq of the most recent scene that has no scene_result yet, if any. */
@@ -73,33 +107,53 @@ export async function unresolvedSceneSeq(sessionId: string): Promise<number | un
   return rows[0]?.seq;
 }
 
-/** Trusted places within radius, nearest first, excluding used and cooled-down places. */
+/**
+ * Trusted places for the next scene: within `radiusM` of the anchor but at
+ * least `minStepM` away, not already used this session, not within
+ * `SAME_SPOT_M` of a place used this session, not cooled down, not vetoed.
+ * Nearest first.
+ */
 export async function listCandidates(
   args: {
     areaId: string;
-    originLat: number;
-    originLng: number;
+    anchorLat: number;
+    anchorLng: number;
     radiusM: number;
+    minStepM: number;
     excludePlaceIds: string[];
+    avoidPoints: { lat: number; lng: number }[];
+    avoidRadiusM: number;
     userId: string;
   },
-  limit = 12,
+  limit = 24,
 ): Promise<Candidate[]> {
-  const origin = geo(args.originLng, args.originLat);
+  const anchor = geo(args.anchorLng, args.anchorLat);
   const exclude = excludePlaceIdsSql(args.excludePlaceIds);
+  const declutter =
+    args.avoidPoints.length === 0
+      ? sql``
+      : sql`and ${sql.join(
+          args.avoidPoints.map(
+            (p) =>
+              sql`not ST_DWithin(${places.point}, ${geo(p.lng, p.lat)}, ${args.avoidRadiusM})`,
+          ),
+          sql` and `,
+        )}`;
 
   // TODO: opening-hours filter once open_hours shape + session timezone are settled.
   const rows = await db.execute(sql`
     select ${places.id} as "placeId",
            ${places.category} as "category",
-           ST_Distance(${places.point}, ${origin}) as "distanceM",
+           ST_Distance(${places.point}, ${anchor}) as "distanceM",
            ST_Y(${places.point}::geometry) as "lat",
            ST_X(${places.point}::geometry) as "lng"
     from ${places}
     left join visit_history v on v.place_id = ${places.id} and v.user_id = ${args.userId}
     where ${places.areaId} = ${args.areaId}
-      and ST_DWithin(${places.point}, ${origin}, ${args.radiusM})
+      and ST_DWithin(${places.point}, ${anchor}, ${args.radiusM})
+      and ST_Distance(${places.point}, ${anchor}) >= ${args.minStepM}
       ${exclude}
+      ${declutter}
       and (v.place_id is null
            or v.last_visited_at < now() - make_interval(days => ${places.cooldownDays}))
       and not exists (

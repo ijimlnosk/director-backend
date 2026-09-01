@@ -1,8 +1,14 @@
 import { aiDirector } from '../../integrations/ai/index.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
-import { SEARCH_RADIUS_M } from './scene.constants.js';
+import {
+  MIN_STEP_M,
+  RECENT_CATEGORY_WINDOW,
+  SAME_SPOT_M,
+  SEARCH_RADIUS_M,
+} from './scene.constants.js';
 import {
   insertNextScene,
+  lastSceneAnchor,
   listCandidates,
   loadSessionContext,
   priorScenes,
@@ -38,6 +44,7 @@ async function chooseScene(
   session: SessionContext,
   remainingMin: number,
   priorSceneCount: number,
+  recentCategories: string[],
   candidates: Candidate[],
 ): Promise<SceneChoice> {
   const nearest = candidates[0]!;
@@ -52,6 +59,7 @@ async function chooseScene(
       transport: session.transport,
       remainingMin,
       priorSceneCount,
+      recentCategories,
       candidates: candidates.map((c) => ({
         placeId: c.placeId,
         category: c.category,
@@ -107,21 +115,41 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
   const usedPlaceIds = prior
     .map((scene) => scene.placeId)
     .filter((id): id is string => id !== null);
+  const avoidPoints = prior
+    .filter((s): s is typeof s & { lat: number; lng: number } => s.lat !== null && s.lng !== null)
+    .map((s) => ({ lat: s.lat, lng: s.lng }));
+  const recentCategories = [
+    ...new Set(
+      prior
+        .map((s) => s.category)
+        .filter((c): c is string => c !== null)
+        .slice(-RECENT_CATEGORY_WINDOW),
+    ),
+  ];
   const remainingMin = session.durationMin - prior.reduce((sum, s) => sum + s.timeLimitMin, 0);
+
+  // The search moves with the player: last arrival, else session origin.
+  const anchor = (await lastSceneAnchor(sessionId)) ?? {
+    lat: session.originLat,
+    lng: session.originLng,
+  };
 
   const candidates = await listCandidates({
     areaId: session.areaId,
-    originLat: session.originLat,
-    originLng: session.originLng,
+    anchorLat: anchor.lat,
+    anchorLng: anchor.lng,
     radiusM: SEARCH_RADIUS_M[session.transport],
+    minStepM: MIN_STEP_M[session.transport],
     excludePlaceIds: usedPlaceIds,
+    avoidPoints,
+    avoidRadiusM: SAME_SPOT_M,
     userId,
   });
   if (candidates.length === 0) {
     throw constraintFailed('No eligible place found for the next scene');
   }
 
-  const choice = await chooseScene(session, remainingMin, prior.length, candidates);
+  const choice = await chooseScene(session, remainingMin, prior.length, recentCategories, candidates);
 
   // Final deterministic check: the scene must fit the remaining session time.
   if (choice.draft.timeLimitMin > remainingMin) {

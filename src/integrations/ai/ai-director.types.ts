@@ -12,6 +12,8 @@ export interface DirectorRequest {
   transport: 'walk' | 'transit' | 'car';
   remainingMin: number;
   priorSceneCount: number;
+  /** Categories of the last few scenes; the Director should vary away from these. */
+  recentCategories: string[];
   candidates: DirectorCandidate[];
 }
 

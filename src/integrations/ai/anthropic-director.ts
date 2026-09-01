@@ -20,6 +20,7 @@ const SYSTEM_PROMPT = [
   '- hint: one Korean sentence hinting at the place category.',
   '- Keep the choice feasible for the given transport and remaining minutes; prefer closer places when time is short.',
   '- mood "chill": favour nearby, low-effort, relaxed places. mood "adventurous": favour the more unusual or farther options within reach. mood null: no preference.',
+  '- recentCategories lists what the player just did; pick a different category when a reasonable candidate exists, so the outing stays varied.',
   'Answer only by calling the submit_scene tool.',
 ].join('\n');
 
