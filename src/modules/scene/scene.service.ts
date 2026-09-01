@@ -28,14 +28,14 @@ interface SceneChoice {
   draft: MoveSceneDraft;
 }
 
-/** Deterministic pick from the nearest candidate. */
-function deterministicChoice(nearest: Candidate, transport: SessionContext['transport']): SceneChoice {
-  const distanceM = Math.round(nearest.distanceM);
+/** No-AI pick: take the first of the (already shuffled) candidate pool. */
+function deterministicChoice(pick: Candidate, transport: SessionContext['transport']): SceneChoice {
+  const distanceM = Math.round(pick.distanceM);
   return {
-    placeId: nearest.placeId,
+    placeId: pick.placeId,
     distanceM,
     generatedBy: 'template',
-    draft: buildMoveScene({ category: nearest.category, distanceM, transport }),
+    draft: buildMoveScene({ category: pick.category, distanceM, transport }),
   };
 }
 
@@ -47,9 +47,9 @@ async function chooseScene(
   recentCategories: string[],
   candidates: Candidate[],
 ): Promise<SceneChoice> {
-  const nearest = candidates[0]!;
+  const fallbackPick = candidates[0]!;
   if (!aiDirector.enabled) {
-    return deterministicChoice(nearest, session.transport);
+    return deterministicChoice(fallbackPick, session.transport);
   }
 
   try {
@@ -89,7 +89,7 @@ async function chooseScene(
   } catch (error) {
     // eslint-disable-next-line no-console -- no shared logger yet; visible in container logs
     console.warn('[ai-director] falling back to deterministic pick:', error);
-    return deterministicChoice(nearest, session.transport);
+    return deterministicChoice(fallbackPick, session.transport);
   }
 }
 

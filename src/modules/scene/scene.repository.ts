@@ -111,7 +111,8 @@ export async function unresolvedSceneSeq(sessionId: string): Promise<number | un
  * Trusted places for the next scene: within `radiusM` of the anchor but at
  * least `minStepM` away, not already used this session, not within
  * `SAME_SPOT_M` of a place used this session, not cooled down, not vetoed.
- * Nearest first.
+ * The nearest `poolSize` are then shuffled and the first `limit` returned, so
+ * the same origin does not always yield the same scene.
  */
 export async function listCandidates(
   args: {
@@ -126,6 +127,7 @@ export async function listCandidates(
     userId: string;
   },
   limit = 24,
+  poolSize = 60,
 ): Promise<Candidate[]> {
   const anchor = geo(args.anchorLng, args.anchorLat);
   const exclude = excludePlaceIdsSql(args.excludePlaceIds);
@@ -142,26 +144,31 @@ export async function listCandidates(
 
   // TODO: opening-hours filter once open_hours shape + session timezone are settled.
   const rows = await db.execute(sql`
-    select ${places.id} as "placeId",
-           ${places.category} as "category",
-           ST_Distance(${places.point}, ${anchor}) as "distanceM",
-           ST_Y(${places.point}::geometry) as "lat",
-           ST_X(${places.point}::geometry) as "lng"
-    from ${places}
-    left join visit_history v on v.place_id = ${places.id} and v.user_id = ${args.userId}
-    where ${places.areaId} = ${args.areaId}
-      and ST_DWithin(${places.point}, ${anchor}, ${args.radiusM})
-      and ST_Distance(${places.point}, ${anchor}) >= ${args.minStepM}
-      ${exclude}
-      ${declutter}
-      and (v.place_id is null
-           or v.last_visited_at < now() - make_interval(days => ${places.cooldownDays}))
-      and not exists (
-        select 1 from veto vt
-        where vt.user_id = ${args.userId}
-          and (vt.place_id = ${places.id} or vt.category = ${places.category})
-      )
-    order by "distanceM" asc
+    select "placeId", "category", "distanceM", "lat", "lng"
+    from (
+      select ${places.id} as "placeId",
+             ${places.category} as "category",
+             ST_Distance(${places.point}, ${anchor}) as "distanceM",
+             ST_Y(${places.point}::geometry) as "lat",
+             ST_X(${places.point}::geometry) as "lng"
+      from ${places}
+      left join visit_history v on v.place_id = ${places.id} and v.user_id = ${args.userId}
+      where ${places.areaId} = ${args.areaId}
+        and ST_DWithin(${places.point}, ${anchor}, ${args.radiusM})
+        and ST_Distance(${places.point}, ${anchor}) >= ${args.minStepM}
+        ${exclude}
+        ${declutter}
+        and (v.place_id is null
+             or v.last_visited_at < now() - make_interval(days => ${places.cooldownDays}))
+        and not exists (
+          select 1 from veto vt
+          where vt.user_id = ${args.userId}
+            and (vt.place_id = ${places.id} or vt.category = ${places.category})
+        )
+      order by "distanceM" asc
+      limit ${poolSize}
+    ) pool
+    order by random()
     limit ${limit}
   `);
   return rows as unknown as Candidate[];

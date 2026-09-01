@@ -33,6 +33,9 @@ export const SAME_SPOT_M = 40;
 /** How many prior categories the Director is told to vary away from. */
 export const RECENT_CATEGORY_WINDOW = 3;
 
+/** Nearest-N eligible places to shuffle the candidate pool out of. */
+export const CANDIDATE_POOL_SIZE = 60;
+
 /** How close a GPS fix must be to the target to count as an arrival (metres). */
 export const ARRIVAL_GEOFENCE_M = 75;
 
