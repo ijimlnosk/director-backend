@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
+import { startSessionResponse } from './session.checks.js';
 import { createSessionBody, sessionParams, sessionResponse } from './session.schema.js';
 import { createDraftSession, getSessionForUser, startSession } from './session.service.js';
 
@@ -30,17 +31,14 @@ export async function sessionRoutes(fastify: FastifyInstance): Promise<void> {
     {
       schema: {
         tags: ['session'],
-        summary: 'Run the safety check (weather) and activate the session',
+        summary: 'Run the safety check and activate the session',
         security: [{ bearerAuth: [] }],
         params: sessionParams,
-        response: { 200: sessionResponse },
+        response: { 200: startSessionResponse },
       },
       onRequest: app.authenticate,
     },
-    async (request) => {
-      const session = await startSession(request.user.sub, request.params.sessionId);
-      return { session };
-    },
+    async (request) => startSession(request.user.sub, request.params.sessionId),
   );
 
   app.get(

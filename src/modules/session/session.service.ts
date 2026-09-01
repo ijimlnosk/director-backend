@@ -1,9 +1,11 @@
 import { WeatherProviderError, weatherProvider, type WeatherSnapshot } from '../../integrations/weather/index.js';
 import { AppError, conflict, notFound } from '../../shared/errors/app-error.js';
+import { runStartChecks, type StartChecks } from './session.checks.js';
 import { toSessionView, type CreateSessionInput, type SessionView } from './session.schema.js';
 import {
   activateSession,
   areaExists,
+  areaSummary,
   findSessionById,
   insertDraftSession,
 } from './session.repository.js';
@@ -32,8 +34,11 @@ export async function getSessionForUser(userId: string, sessionId: string): Prom
   return toSessionView(row);
 }
 
-/** SAFETY CHECK: capture weather at the origin and move the session to active. */
-export async function startSession(userId: string, sessionId: string): Promise<SessionView> {
+/** SAFETY CHECK: capture weather, run the start checks, move the session to active. */
+export async function startSession(
+  userId: string,
+  sessionId: string,
+): Promise<{ session: SessionView; checks: StartChecks }> {
   const row = await findSessionById(sessionId);
   if (row === undefined) {
     throw notFound('session');
@@ -43,6 +48,11 @@ export async function startSession(userId: string, sessionId: string): Promise<S
   }
   if (row.status !== 'draft') {
     throw conflict(`Session is ${row.status}; only a draft session can be started`);
+  }
+
+  const area = await areaSummary(row.areaId);
+  if (area === undefined) {
+    throw notFound('area');
   }
 
   let weather: WeatherSnapshot | null = null;
@@ -59,5 +69,17 @@ export async function startSession(userId: string, sessionId: string): Promise<S
     // Lost a race: someone else started it first.
     throw conflict('Session is no longer a draft');
   }
-  return toSessionView(activated);
+
+  const checks = await runStartChecks({
+    userId,
+    sessionId,
+    area,
+    transport: row.transport,
+    durationMin: row.durationMin,
+    originLat: row.lat,
+    originLng: row.lng,
+    weather,
+  });
+
+  return { session: toSessionView(activated), checks };
 }
