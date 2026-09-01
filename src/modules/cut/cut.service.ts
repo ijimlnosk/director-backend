@@ -1,4 +1,4 @@
-import { storage } from '../../integrations/storage/index.js';
+import { GET_URL_TTL_SEC, storage } from '../../integrations/storage/index.js';
 import { conflict, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { buildCutCopy } from './cut.templates.js';
 import {
@@ -16,7 +16,7 @@ async function assembleCutView(sessionId: string, cut: CutRow): Promise<CutView>
     sessionSceneBreakdown(sessionId),
     coverPhoto(sessionId),
   ]);
-  const coverUrl = cover ? await storage.urlFor(cover.storageKey) : null;
+  const coverUrl = cover ? await storage.presignGet(cover.storageKey, GET_URL_TTL_SEC) : null;
   return toCutView(cut, scenes, coverUrl);
 }
 

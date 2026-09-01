@@ -1,7 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
@@ -13,12 +12,35 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod';
 
+import { storage, writeLocalObject } from '../integrations/storage/index.js';
 import { env } from '../shared/config/env.js';
-import { storage } from '../integrations/storage/index.js';
 import { db } from '../shared/database/client.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandler } from './plugins/error-handler.js';
 import { registerRoutes } from './routes.js';
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/** Local-storage stand-in for a presigned PUT: accepts the raw image body. */
+async function registerLocalMediaUpload(app: FastifyInstance): Promise<void> {
+  app.addContentTypeParser(
+    IMAGE_TYPES,
+    { parseAs: 'buffer', bodyLimit: env.PHOTO_MAX_BYTES + 1024 },
+    (_req, body, done) => done(null, body),
+  );
+  await mkdir(env.MEDIA_DIR, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: resolve(env.MEDIA_DIR),
+    prefix: '/media/',
+    decorateReply: false,
+    index: false,
+  });
+  app.put('/media-upload/*', { schema: { hide: true } }, async (request, reply) => {
+    const key = (request.params as Record<'*', string>)['*'];
+    await writeLocalObject(env.MEDIA_DIR, key, request.body as Buffer);
+    return reply.code(200).send({ ok: true });
+  });
+}
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -28,19 +50,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerErrorHandler(app);
   await registerAuth(app);
 
-  await app.register(fastifyMultipart, {
-    limits: { fileSize: env.MEDIA_MAX_BYTES, files: 1, fields: 5 },
-    throwFileSizeLimit: false,
-  });
-
   if (storage.kind === 'local') {
-    await mkdir(env.MEDIA_DIR, { recursive: true });
-    await app.register(fastifyStatic, {
-      root: resolve(env.MEDIA_DIR),
-      prefix: '/media/',
-      decorateReply: false,
-      index: false,
-    });
+    await registerLocalMediaUpload(app);
   }
 
   await app.register(fastifySwagger, {

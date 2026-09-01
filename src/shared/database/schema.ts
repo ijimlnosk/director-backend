@@ -146,13 +146,18 @@ export const participants = pgTable('participant', {
   joinedAt: timestamp('joined_at', { withTimezone: true }).notNull(),
 }, (table) => [unique('participant_session_user_unique').on(table.sessionId, table.userId)]);
 
+export const photoStatusEnum = pgEnum('photo_status', ['pending', 'ready']);
+
 export const photos = pgTable('photo', {
   id: uuid('id').defaultRandom().primaryKey(),
   sceneResultId: uuid('scene_result_id').notNull().references(() => sceneResults.id).unique(),
   storageKey: text('storage_key').notNull(),
-  width: integer('width').notNull(),
-  height: integer('height').notNull(),
-  takenAt: timestamp('taken_at', { withTimezone: true }).notNull(),
+  status: photoStatusEnum('status').notNull().default('pending'),
+  contentType: text('content_type'),
+  bytes: integer('bytes'),
+  width: integer('width'),
+  height: integer('height'),
+  takenAt: timestamp('taken_at', { withTimezone: true }).defaultNow().notNull(),
   includeInCredits: boolean('include_in_credits').notNull().default(true),
 });
 

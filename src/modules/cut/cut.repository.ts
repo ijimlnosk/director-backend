@@ -71,7 +71,9 @@ export async function coverPhoto(
     from photo ph
     join scene_result r on r.id = ph.scene_result_id
     join scene s on s.id = r.scene_id
-    where s.session_id = ${sessionId} and ph.include_in_credits = true
+    where s.session_id = ${sessionId}
+      and ph.include_in_credits = true
+      and ph.status = 'ready'
     order by ph.taken_at
     limit 1
   `);

@@ -50,6 +50,13 @@
       "when": 1788236096368,
       "tag": "0006_session_mood",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788239936258,
+      "tag": "0007_photo_upload_flow",
+      "breakpoints": true
     }
   ]
 }

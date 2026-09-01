@@ -11,10 +11,8 @@ export interface SceneResultForPhoto {
   outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed';
 }
 
-/** The caller's own result for a scene, with owner and outcome. */
 export async function loadSceneResultForPhoto(
   sceneId: string,
-  userId: string,
 ): Promise<SceneResultForPhoto | undefined> {
   const [row] = await db
     .select({
@@ -28,37 +26,92 @@ export async function loadSceneResultForPhoto(
     .innerJoin(sessions, eq(sessions.id, scenes.sessionId))
     .where(eq(sceneResults.sceneId, sceneId))
     .limit(1);
-  if (row === undefined || row.hostUserId === null) return undefined;
-  return row as SceneResultForPhoto;
+  return row as SceneResultForPhoto | undefined;
 }
 
-export async function photoExists(sceneResultId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: photos.id })
-    .from(photos)
-    .where(eq(photos.sceneResultId, sceneResultId))
-    .limit(1);
-  return rows.length > 0;
-}
-
-export async function insertPhoto(args: {
+export interface PhotoRecord {
+  id: string;
   sceneResultId: string;
   storageKey: string;
-  width: number;
-  height: number;
-}): Promise<PhotoRow> {
+  status: 'pending' | 'ready';
+  hostUserId: string;
+}
+
+export async function findPhotoBySceneResult(
+  sceneResultId: string,
+): Promise<PhotoRecord | undefined> {
+  const [row] = await db
+    .select({
+      id: photos.id,
+      sceneResultId: photos.sceneResultId,
+      storageKey: photos.storageKey,
+      status: photos.status,
+      hostUserId: sessions.hostUserId,
+    })
+    .from(photos)
+    .innerJoin(sceneResults, eq(sceneResults.id, photos.sceneResultId))
+    .innerJoin(scenes, eq(scenes.id, sceneResults.sceneId))
+    .innerJoin(sessions, eq(sessions.id, scenes.sessionId))
+    .where(eq(photos.sceneResultId, sceneResultId))
+    .limit(1);
+  return row as PhotoRecord | undefined;
+}
+
+export async function findPhotoById(photoId: string): Promise<PhotoRecord | undefined> {
+  const [row] = await db
+    .select({
+      id: photos.id,
+      sceneResultId: photos.sceneResultId,
+      storageKey: photos.storageKey,
+      status: photos.status,
+      hostUserId: sessions.hostUserId,
+    })
+    .from(photos)
+    .innerJoin(sceneResults, eq(sceneResults.id, photos.sceneResultId))
+    .innerJoin(scenes, eq(scenes.id, sceneResults.sceneId))
+    .innerJoin(sessions, eq(sessions.id, scenes.sessionId))
+    .where(eq(photos.id, photoId))
+    .limit(1);
+  return row as PhotoRecord | undefined;
+}
+
+/** Create (or re-key) the pending photo row for a scene result. */
+export async function upsertPendingPhoto(
+  sceneResultId: string,
+  storageKey: string,
+): Promise<string> {
   const [row] = await db
     .insert(photos)
-    .values({
-      sceneResultId: args.sceneResultId,
-      storageKey: args.storageKey,
+    .values({ sceneResultId, storageKey, status: 'pending' })
+    .onConflictDoUpdate({
+      target: photos.sceneResultId,
+      set: { storageKey, status: 'pending', contentType: null, bytes: null },
+    })
+    .returning({ id: photos.id });
+  return row!.id;
+}
+
+export async function markPhotoReady(args: {
+  photoId: string;
+  contentType: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+}): Promise<PhotoRow> {
+  const [row] = await db
+    .update(photos)
+    .set({
+      status: 'ready',
+      contentType: args.contentType,
+      bytes: args.bytes,
       width: args.width,
       height: args.height,
-      takenAt: new Date(),
     })
+    .where(eq(photos.id, args.photoId))
     .returning({
       id: photos.id,
-      storageKey: photos.storageKey,
+      contentType: photos.contentType,
+      bytes: photos.bytes,
       width: photos.width,
       height: photos.height,
       takenAt: photos.takenAt,
