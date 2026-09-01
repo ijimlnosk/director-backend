@@ -17,7 +17,7 @@ export async function sessionRoutes(fastify: FastifyInstance): Promise<void> {
         body: createSessionBody,
         response: { 201: sessionResponse },
       },
-      preHandler: app.authenticate,
+      onRequest: app.authenticate,
     },
     async (request, reply) => {
       const session = await createDraftSession(request.user.sub, request.body);
@@ -35,7 +35,7 @@ export async function sessionRoutes(fastify: FastifyInstance): Promise<void> {
         params: sessionParams,
         response: { 200: sessionResponse },
       },
-      preHandler: app.authenticate,
+      onRequest: app.authenticate,
     },
     async (request) => {
       const session = await getSessionForUser(request.user.sub, request.params.sessionId);

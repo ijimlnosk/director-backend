@@ -19,3 +19,15 @@ export const TIME_LIMIT_BUFFER_MIN = 5;
 
 /** A scene never gets less than this much time. */
 export const MIN_TIME_LIMIT_MIN = 10;
+
+/** How close a GPS fix must be to the target to count as an arrival (metres). */
+export const ARRIVAL_GEOFENCE_M = 75;
+
+export const SKIP_REASONS = [
+  'too_far',
+  'not_interested',
+  'too_expensive',
+  'no_time',
+  'weather',
+  'other',
+] as const;

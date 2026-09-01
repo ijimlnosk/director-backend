@@ -1,0 +1,1 @@
+ALTER TABLE "scene_result" ADD COLUMN "skip_reason" text;

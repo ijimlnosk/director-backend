@@ -119,6 +119,7 @@ export const sceneResults = pgTable('scene_result', {
   outcome: sceneOutcomeEnum('outcome').notNull(),
   verifiedBy: verificationMethodEnum('verified_by').notNull(),
   arrivedPoint: geography('arrived_point', { type: 'point' }),
+  skipReason: text('skip_reason'),
   elapsedSec: integer('elapsed_sec').notNull(),
   walkedM: integer('walked_m').notNull(),
   recordedAt: timestamp('recorded_at', { withTimezone: true }).defaultNow().notNull(),
