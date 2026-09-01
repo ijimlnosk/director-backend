@@ -84,7 +84,8 @@ export function createKakaoPlacesProvider(opts: {
       );
     }
     if (!response.ok) {
-      throw new PlacesProviderError(`Kakao responded ${response.status}`);
+      const detail = (await response.text().catch(() => '')).slice(0, 200);
+      throw new PlacesProviderError(`Kakao responded ${response.status}: ${detail}`);
     }
     return (await response.json()) as KakaoResponse;
   }
