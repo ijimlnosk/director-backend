@@ -26,6 +26,9 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://director:director@db:5432/director
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (min 32 chars) in your environment}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-claude-opus-5}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-8000}
     ports:
       - "127.0.0.1:3100:3000"
     depends_on:
