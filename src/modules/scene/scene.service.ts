@@ -1,7 +1,12 @@
 import { aiDirector } from '../../integrations/ai/index.js';
 import { countJoined, findParticipant } from '../participant/participant.repository.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
-import { MIN_STEP_M, RECENT_CATEGORY_WINDOW, SAME_SPOT_M } from './scene.constants.js';
+import {
+  MIN_STEP_M,
+  PURPOSE_CATEGORIES,
+  RECENT_CATEGORY_WINDOW,
+  SAME_SPOT_M,
+} from './scene.constants.js';
 import {
   currentSceneRow,
   insertNextScene,
@@ -71,6 +76,7 @@ async function chooseScene(
     const decision = await aiDirector.decide({
       mode: session.mode,
       mood: session.mood,
+      purpose: session.purpose,
       transport: session.transport,
       remainingMin,
       priorSceneCount,
@@ -192,6 +198,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     excludePlaceIds: usedPlaceIds,
     avoidPoints,
     avoidRadiusM: SAME_SPOT_M,
+    categories: PURPOSE_CATEGORIES[session.purpose],
     userId,
   });
   if (candidates.length === 0) {

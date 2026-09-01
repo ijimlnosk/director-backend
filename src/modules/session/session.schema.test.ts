@@ -8,6 +8,7 @@ const baseRow: SessionRow = {
   hostUserId: '22222222-2222-4222-8222-222222222222',
   mode: 'solo',
   mood: null,
+  purpose: 'explore' as const,
   status: 'draft',
   durationMin: 90,
   budgetKrw: null,

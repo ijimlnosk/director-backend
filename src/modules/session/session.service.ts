@@ -119,6 +119,7 @@ export async function startSession(
     sessionId,
     area,
     transport: row.transport,
+    purpose: row.purpose,
     durationMin: row.durationMin,
     originLat: row.lat,
     originLng: row.lng,

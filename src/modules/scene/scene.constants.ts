@@ -1,5 +1,15 @@
 export type Transport = 'walk' | 'transit' | 'car';
 
+export type Purpose = 'explore' | 'walk' | 'food' | 'culture';
+
+/** `place.category` values a purpose draws from. Empty = no restriction. */
+export const PURPOSE_CATEGORIES: Record<Purpose, string[]> = {
+  explore: [],
+  walk: ['관광명소', '문화시설', '공원'],
+  food: ['음식점', '카페'],
+  culture: ['문화시설', '관광명소', '서점'],
+};
+
 /** Upper bound on how far the next place can be, by transport mode (metres). */
 export const SEARCH_RADIUS_M: Record<Transport, number> = {
   walk: 1500,

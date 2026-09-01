@@ -9,7 +9,7 @@ import {
   userPreferences,
 } from '../../shared/database/schema.js';
 import { excludePlaceIdsSql } from './scene.candidates.js';
-import type { Transport } from './scene.constants.js';
+import type { Purpose, Transport } from './scene.constants.js';
 import type { MoveSceneDraft } from './scene.templates.js';
 import type { SceneListRow, SceneRow } from './scene.schema.js';
 
@@ -64,6 +64,7 @@ export interface SessionContext {
   status: string;
   mode: 'solo' | 'date' | 'friends';
   mood: 'chill' | 'adventurous' | null;
+  purpose: Purpose;
   transport: Transport;
   areaId: string;
   durationMin: number;
@@ -89,6 +90,7 @@ export async function loadSessionContext(sessionId: string): Promise<SessionCont
            ${sessions.status} as "status",
            ${sessions.mode} as "mode",
            ${sessions.mood} as "mood",
+           ${sessions.purpose} as "purpose",
            ${sessions.transport} as "transport",
            ${sessions.areaId} as "areaId",
            ${sessions.durationMin} as "durationMin",
@@ -210,6 +212,7 @@ export async function listCandidates(
     excludePlaceIds: string[];
     avoidPoints: { lat: number; lng: number }[];
     avoidRadiusM: number;
+    categories: string[];
     userId: string;
   },
   limit = 24,
@@ -217,6 +220,13 @@ export async function listCandidates(
 ): Promise<Candidate[]> {
   const anchor = geo(args.anchorLng, args.anchorLat);
   const exclude = excludePlaceIdsSql(args.excludePlaceIds);
+  const categoryFilter =
+    args.categories.length === 0
+      ? sql``
+      : sql`and ${places.category} = any(array[${sql.join(
+          args.categories.map((c) => sql`${c}`),
+          sql`, `,
+        )}]::text[])`;
   const declutter =
     args.avoidPoints.length === 0
       ? sql``
@@ -242,6 +252,7 @@ export async function listCandidates(
       where ${places.areaId} = ${args.areaId}
         and ST_DWithin(${places.point}, ${anchor}, ${args.radiusM})
         and ST_Distance(${places.point}, ${anchor}) >= ${args.minStepM}
+        ${categoryFilter}
         ${exclude}
         ${declutter}
         and (v.place_id is null

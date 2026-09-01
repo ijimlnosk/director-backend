@@ -9,6 +9,7 @@ export interface DirectorCandidate {
 export interface DirectorRequest {
   mode: 'solo' | 'date' | 'friends';
   mood: 'chill' | 'adventurous' | null;
+  purpose: 'explore' | 'walk' | 'food' | 'culture';
   transport: 'walk' | 'transit' | 'car';
   remainingMin: number;
   priorSceneCount: number;

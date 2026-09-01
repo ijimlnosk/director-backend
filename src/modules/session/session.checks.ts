@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 import { weatherSnapshotSchema, type WeatherSnapshot } from '../../integrations/weather/weather.types.js';
-import { MIN_STEP_M, SAME_SPOT_M } from '../scene/scene.constants.js';
+import {
+  MIN_STEP_M,
+  PURPOSE_CATEGORIES,
+  SAME_SPOT_M,
+  type Purpose,
+} from '../scene/scene.constants.js';
 import { listCandidates } from '../scene/scene.repository.js';
 import { hopRadiusM } from '../scene/scene.templates.js';
 import { outdoorAdvisory } from './session.advisory.js';
@@ -35,6 +40,7 @@ export interface StartCheckInput {
   sessionId: string;
   area: { id: string; name: string; isLive: boolean };
   transport: 'walk' | 'transit' | 'car';
+  purpose: Purpose;
   durationMin: number;
   originLat: number;
   originLng: number;
@@ -56,6 +62,7 @@ export async function runStartChecks(input: StartCheckInput): Promise<StartCheck
       excludePlaceIds: [],
       avoidPoints: [],
       avoidRadiusM: SAME_SPOT_M,
+      categories: PURPOSE_CATEGORIES[input.purpose],
       userId: input.userId,
     }),
     visitedPlacesInArea(input.userId, input.area.id),

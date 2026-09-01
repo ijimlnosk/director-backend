@@ -5,6 +5,7 @@ import { weatherSnapshotSchema } from '../../integrations/weather/weather.types.
 export const createSessionBody = z.object({
   mode: z.enum(['solo', 'date', 'friends']),
   mood: z.enum(['chill', 'adventurous']).optional(),
+  purpose: z.enum(['explore', 'walk', 'food', 'culture']).default('explore'),
   durationMin: z.number().int().min(15).max(480),
   budgetKrw: z.number().int().min(0).max(10_000_000).optional(),
   transport: z.enum(['walk', 'transit', 'car']),
@@ -23,6 +24,7 @@ export const sessionView = z.object({
   id: z.uuid(),
   mode: z.enum(['solo', 'date', 'friends']),
   mood: z.enum(['chill', 'adventurous']).nullable(),
+  purpose: z.enum(['explore', 'walk', 'food', 'culture']),
   status: z.enum(['draft', 'checking', 'active', 'completed', 'abandoned', 'archived']),
   durationMin: z.number().int(),
   budgetKrw: z.number().int().nullable(),
@@ -64,6 +66,7 @@ export interface SessionRow {
   hostUserId: string;
   mode: SessionView['mode'];
   mood: SessionView['mood'];
+  purpose: SessionView['purpose'];
   status: SessionView['status'];
   durationMin: number;
   budgetKrw: number | null;
@@ -83,6 +86,7 @@ export function toSessionView(row: SessionRow): SessionView {
     id: row.id,
     mode: row.mode,
     mood: row.mood,
+    purpose: row.purpose,
     status: row.status,
     durationMin: row.durationMin,
     budgetKrw: row.budgetKrw,

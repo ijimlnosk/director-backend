@@ -19,6 +19,7 @@ const SYSTEM_PROMPT = [
   '- body: 1-2 Korean sentences of direction and mood.',
   '- hint: one Korean sentence hinting at the place category.',
   '- Keep the choice feasible for the given transport and remaining minutes; prefer closer places when time is short.',
+  '- purpose "walk": frame it as a relaxed stroll to see or pass by the place - never about eating. "food": a place to eat or drink. "culture": a museum/gallery/landmark to spend time at. "explore": anything goes.',
   '- mood "chill": favour nearby, low-effort, relaxed places. mood "adventurous": favour the more unusual or farther options within reach. mood null: no preference.',
   '- recentCategories lists what the player just did; pick a different category when a reasonable candidate exists, so the outing stays varied.',
   '- preferredCategories: lean toward a candidate in one of these when the choice is otherwise close.',
