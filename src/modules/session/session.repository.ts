@@ -1,9 +1,9 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
-import { areas, sessions } from '../../shared/database/schema.js';
+import { areas, scenes, sessions } from '../../shared/database/schema.js';
 import type { WeatherSnapshot } from '../../integrations/weather/weather.types.js';
-import type { CreateSessionInput, SessionRow } from './session.schema.js';
+import type { CreateSessionInput, ListSessionsQuery, SessionRow } from './session.schema.js';
 
 const point = (lng: number, lat: number) =>
   sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography`;
@@ -87,6 +87,40 @@ export async function insertDraftSession(
 
 export async function findSessionById(id: string): Promise<SessionRow | undefined> {
   const [row] = await db.select(ROW_SELECT).from(sessions).where(eq(sessions.id, id)).limit(1);
+  return row;
+}
+
+export async function listSessionsForUser(
+  userId: string,
+  query: ListSessionsQuery,
+): Promise<(SessionRow & { sceneCount: number })[]> {
+  const where =
+    query.status === undefined
+      ? eq(sessions.hostUserId, userId)
+      : and(eq(sessions.hostUserId, userId), eq(sessions.status, query.status));
+
+  return db
+    .select({
+      ...ROW_SELECT,
+      sceneCount: sql<number>`(
+        select count(*)::int from ${scenes} where ${scenes.sessionId} = ${sessions.id}
+      )`,
+    })
+    .from(sessions)
+    .where(where)
+    .orderBy(sql`${sessions.startedAt} desc nulls last`, desc(sessions.id))
+    .limit(query.limit);
+}
+
+const ABANDONABLE = ['draft', 'checking', 'active'] as const;
+
+/** Move a session to `abandoned` if it is still in progress. */
+export async function abandonSession(sessionId: string): Promise<SessionRow | undefined> {
+  const [row] = await db
+    .update(sessions)
+    .set({ status: 'abandoned', endedAt: new Date() })
+    .where(and(eq(sessions.id, sessionId), inArray(sessions.status, [...ABANDONABLE])))
+    .returning(ROW_SELECT);
   return row;
 }
 

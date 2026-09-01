@@ -1,13 +1,22 @@
 import { WeatherProviderError, weatherProvider, type WeatherSnapshot } from '../../integrations/weather/index.js';
 import { AppError, conflict, notFound } from '../../shared/errors/app-error.js';
 import { runStartChecks, type StartChecks } from './session.checks.js';
-import { toSessionView, type CreateSessionInput, type SessionView } from './session.schema.js';
 import {
+  toSessionListItem,
+  toSessionView,
+  type CreateSessionInput,
+  type ListSessionsQuery,
+  type SessionListItem,
+  type SessionView,
+} from './session.schema.js';
+import {
+  abandonSession as abandonSessionRow,
   activateSession,
   areaExists,
   areaSummary,
   findSessionById,
   insertDraftSession,
+  listSessionsForUser,
 } from './session.repository.js';
 
 /** Create a DRAFT session owned by the given user. */
@@ -20,6 +29,34 @@ export async function createDraftSession(
   }
   const row = await insertDraftSession(userId, input);
   return toSessionView(row);
+}
+
+/** The caller's sessions, newest first. */
+export async function listSessions(
+  userId: string,
+  query: ListSessionsQuery,
+): Promise<SessionListItem[]> {
+  const rows = await listSessionsForUser(userId, query);
+  return rows.map(({ sceneCount, ...row }) => toSessionListItem(row, sceneCount));
+}
+
+/** Abandon an in-progress session. Idempotent once abandoned. */
+export async function abandonSession(userId: string, sessionId: string): Promise<SessionView> {
+  const row = await findSessionById(sessionId);
+  if (row === undefined) {
+    throw notFound('session');
+  }
+  if (row.hostUserId !== userId) {
+    throw new AppError('AUTHORIZATION', 'You do not have access to this session');
+  }
+  if (row.status === 'abandoned') {
+    return toSessionView(row);
+  }
+  const abandoned = await abandonSessionRow(sessionId);
+  if (abandoned === undefined) {
+    throw conflict(`Session is ${row.status}; it cannot be abandoned`);
+  }
+  return toSessionView(abandoned);
 }
 
 /** Fetch a session, enforcing that the requester is its host. */

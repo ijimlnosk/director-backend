@@ -5,7 +5,52 @@ import { places, sceneResults, scenes, sessions } from '../../shared/database/sc
 import { excludePlaceIdsSql } from './scene.candidates.js';
 import type { Transport } from './scene.constants.js';
 import type { MoveSceneDraft } from './scene.templates.js';
-import type { SceneRow } from './scene.schema.js';
+import type { SceneListRow, SceneRow } from './scene.schema.js';
+
+const SCENE_ROW_SQL = sql`
+  ${scenes.id} as "id",
+  ${scenes.sessionId} as "sessionId",
+  ${scenes.seq} as "seq",
+  ${scenes.type} as "type",
+  ${scenes.title} as "title",
+  ${scenes.body} as "body",
+  ${scenes.hint} as "hint",
+  ${scenes.distanceM} as "distanceM",
+  ${scenes.timeLimitMin} as "timeLimitMin",
+  ${scenes.revealNameAfterArrival} as "revealNameAfterArrival",
+  ${scenes.createdAt} as "createdAt",
+  ST_Y(${places.point}::geometry) as "targetLat",
+  ST_X(${places.point}::geometry) as "targetLng"
+`;
+
+/** All scenes of a session, ordered by seq, with their outcome. */
+export async function listSceneRows(sessionId: string): Promise<SceneListRow[]> {
+  const rows = await db.execute(sql`
+    select ${SCENE_ROW_SQL},
+           ${sceneResults.outcome} as "outcome",
+           ${sceneResults.recordedAt} as "resolvedAt"
+    from ${scenes}
+    left join ${places} on ${places.id} = ${scenes.placeId}
+    left join ${sceneResults} on ${sceneResults.sceneId} = ${scenes.id}
+    where ${scenes.sessionId} = ${sessionId}
+    order by ${scenes.seq}
+  `);
+  return rows as unknown as SceneListRow[];
+}
+
+/** The latest scene with no result yet, i.e. the one to resume. */
+export async function currentSceneRow(sessionId: string): Promise<SceneRow | undefined> {
+  const rows = await db.execute(sql`
+    select ${SCENE_ROW_SQL}
+    from ${scenes}
+    left join ${places} on ${places.id} = ${scenes.placeId}
+    left join ${sceneResults} on ${sceneResults.sceneId} = ${scenes.id}
+    where ${scenes.sessionId} = ${sessionId} and ${sceneResults.id} is null
+    order by ${scenes.seq} desc
+    limit 1
+  `);
+  return (rows as unknown as SceneRow[])[0];
+}
 
 export interface SessionContext {
   id: string;

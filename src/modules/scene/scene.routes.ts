@@ -3,14 +3,17 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import {
   completeSceneBody,
+  currentSceneResponse,
   nextSceneParams,
   sceneIdParams,
+  sceneListResponse,
   sceneResponse,
   sceneResultResponse,
+  sessionScenesParams,
   skipSceneBody,
   vetoSceneBody,
 } from './scene.schema.js';
-import { generateNextScene } from './scene.service.js';
+import { generateNextScene, getCurrentScene, listSessionScenes } from './scene.service.js';
 import { completeScene, skipScene, vetoScene } from './scene.resolve.service.js';
 
 export async function sceneRoutes(fastify: FastifyInstance): Promise<void> {
@@ -32,6 +35,40 @@ export async function sceneRoutes(fastify: FastifyInstance): Promise<void> {
       const scene = await generateNextScene(request.user.sub, request.params.sessionId);
       return reply.code(201).send({ scene });
     },
+  );
+
+  app.get(
+    '/sessions/:sessionId/scenes',
+    {
+      schema: {
+        tags: ['scene'],
+        summary: 'All scenes of a session so far, with outcomes',
+        security: [{ bearerAuth: [] }],
+        params: sessionScenesParams,
+        response: { 200: sceneListResponse },
+      },
+      onRequest: app.authenticate,
+    },
+    async (request) => ({
+      scenes: await listSessionScenes(request.user.sub, request.params.sessionId),
+    }),
+  );
+
+  app.get(
+    '/sessions/:sessionId/scenes/current',
+    {
+      schema: {
+        tags: ['scene'],
+        summary: 'The scene to resume (latest unresolved), or null',
+        security: [{ bearerAuth: [] }],
+        params: sessionScenesParams,
+        response: { 200: currentSceneResponse },
+      },
+      onRequest: app.authenticate,
+    },
+    async (request) => ({
+      scene: await getCurrentScene(request.user.sub, request.params.sessionId),
+    }),
   );
 
   app.post(

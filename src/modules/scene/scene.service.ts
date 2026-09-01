@@ -2,9 +2,11 @@ import { aiDirector } from '../../integrations/ai/index.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { MIN_STEP_M, RECENT_CATEGORY_WINDOW, SAME_SPOT_M } from './scene.constants.js';
 import {
+  currentSceneRow,
   insertNextScene,
   lastSceneAnchor,
   listCandidates,
+  listSceneRows,
   loadSessionContext,
   priorScenes,
   unresolvedSceneSeq,
@@ -17,7 +19,12 @@ import {
   hopRadiusM,
   type MoveSceneDraft,
 } from './scene.templates.js';
-import { toSceneView, type SceneView } from './scene.schema.js';
+import {
+  toSceneListItem,
+  toSceneView,
+  type SceneListItem,
+  type SceneView,
+} from './scene.schema.js';
 
 const SCENE_GENERATABLE_STATUS = new Set(['active']);
 
@@ -91,6 +98,35 @@ async function chooseScene(
     console.warn('[ai-director] falling back to deterministic pick:', error);
     return deterministicChoice(fallbackPick, session.transport);
   }
+}
+
+async function assertSceneOwner(userId: string, sessionId: string): Promise<void> {
+  const session = await loadSessionContext(sessionId);
+  if (session === undefined) {
+    throw notFound('session');
+  }
+  if (session.hostUserId !== userId) {
+    throw forbidden('You do not have access to this session');
+  }
+}
+
+/** Every scene of a session so far, with outcomes, for a trail/progress view. */
+export async function listSessionScenes(
+  userId: string,
+  sessionId: string,
+): Promise<SceneListItem[]> {
+  await assertSceneOwner(userId, sessionId);
+  return (await listSceneRows(sessionId)).map(toSceneListItem);
+}
+
+/** The scene to resume (latest unresolved), or null if there is none. */
+export async function getCurrentScene(
+  userId: string,
+  sessionId: string,
+): Promise<SceneView | null> {
+  await assertSceneOwner(userId, sessionId);
+  const row = await currentSceneRow(sessionId);
+  return row === undefined ? null : toSceneView(row);
 }
 
 /** Generate the next MOVE scene for a session (AI Director with deterministic fallback). */

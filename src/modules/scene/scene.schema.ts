@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { SKIP_REASONS } from './scene.constants.js';
 
 export const nextSceneParams = z.object({ sessionId: z.uuid() });
+export const sessionScenesParams = z.object({ sessionId: z.uuid() });
 
 export const sceneIdParams = z.object({ sceneId: z.uuid() });
 
@@ -107,6 +108,30 @@ export interface SceneRow {
   targetLat: number;
   targetLng: number;
   createdAt: Date;
+}
+
+export const sceneListItem = sceneView.extend({
+  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed']).nullable(),
+  resolvedAt: z.string().nullable(),
+});
+
+export type SceneListItem = z.infer<typeof sceneListItem>;
+
+export const sceneListResponse = z.object({ scenes: z.array(sceneListItem) });
+
+export const currentSceneResponse = z.object({ scene: sceneView.nullable() });
+
+export interface SceneListRow extends SceneRow {
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | null;
+  resolvedAt: Date | null;
+}
+
+export function toSceneListItem(row: SceneListRow): SceneListItem {
+  return {
+    ...toSceneView(row),
+    outcome: row.outcome,
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
+  };
 }
 
 export function toSceneView(row: SceneRow): SceneView {

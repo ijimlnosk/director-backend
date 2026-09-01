@@ -38,6 +38,26 @@ export type SessionView = z.infer<typeof sessionView>;
 
 export const sessionResponse = z.object({ session: sessionView });
 
+export const listSessionsQuery = z.object({
+  status: z.enum(['draft', 'checking', 'active', 'completed', 'abandoned', 'archived']).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export type ListSessionsQuery = z.infer<typeof listSessionsQuery>;
+
+export const sessionListItem = sessionView.omit({ weather: true }).extend({
+  sceneCount: z.number().int(),
+});
+
+export type SessionListItem = z.infer<typeof sessionListItem>;
+
+export const sessionListResponse = z.object({ sessions: z.array(sessionListItem) });
+
+export function toSessionListItem(row: SessionRow, sceneCount: number): SessionListItem {
+  const { weather: _weather, ...view } = toSessionView(row);
+  return { ...view, sceneCount };
+}
+
 export interface SessionRow {
   id: string;
   hostUserId: string;
