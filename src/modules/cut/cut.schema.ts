@@ -6,7 +6,7 @@ export const cutSceneLine = z.object({
   seq: z.number().int(),
   type: z.enum(['move', 'choose', 'photo', 'observe', 'split']),
   title: z.string(),
-  outcome: z.enum(['arrived', 'skipped', 'timeout']).nullable(),
+  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed']).nullable(),
   placeName: z.string().nullable(),
   distanceM: z.number().int(),
 });
@@ -18,6 +18,7 @@ export const cutView = z.object({
   totalDistanceM: z.number().int(),
   runtimeSec: z.number().int(),
   coverPhotoId: z.uuid().nullable(),
+  coverPhotoUrl: z.url().nullable(),
   visibility: z.enum(['private', 'link']),
   scenes: z.array(cutSceneLine),
 });
@@ -40,11 +41,15 @@ export interface CutSceneRow {
   seq: number;
   type: CutView['scenes'][number]['type'];
   title: string;
-  outcome: 'arrived' | 'skipped' | 'timeout' | null;
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | null;
   placeName: string | null;
   distanceM: number;
 }
 
-export function toCutView(cut: CutRow, scenes: CutSceneRow[]): CutView {
-  return { ...cut, scenes };
+export function toCutView(
+  cut: CutRow,
+  scenes: CutSceneRow[],
+  coverPhotoUrl: string | null,
+): CutView {
+  return { ...cut, coverPhotoUrl, scenes };
 }

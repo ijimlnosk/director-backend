@@ -63,9 +63,11 @@ export async function sessionSceneBreakdown(sessionId: string): Promise<CutScene
   return rows as unknown as CutSceneRow[];
 }
 
-export async function coverPhotoId(sessionId: string): Promise<string | null> {
+export async function coverPhoto(
+  sessionId: string,
+): Promise<{ id: string; storageKey: string } | null> {
   const rows = await db.execute(sql`
-    select ph.id as "id"
+    select ph.id as "id", ph.storage_key as "storageKey"
     from photo ph
     join scene_result r on r.id = ph.scene_result_id
     join scene s on s.id = r.scene_id
@@ -73,7 +75,7 @@ export async function coverPhotoId(sessionId: string): Promise<string | null> {
     order by ph.taken_at
     limit 1
   `);
-  return (rows as unknown as { id: string }[])[0]?.id ?? null;
+  return (rows as unknown as { id: string; storageKey: string }[])[0] ?? null;
 }
 
 export async function findCutRow(sessionId: string): Promise<CutRow | undefined> {

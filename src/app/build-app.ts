@@ -1,3 +1,7 @@
+import { mkdir } from 'node:fs/promises';
+
+import fastifyMultipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import { sql } from 'drizzle-orm';
@@ -8,6 +12,7 @@ import {
   validatorCompiler,
 } from 'fastify-type-provider-zod';
 
+import { env } from '../shared/config/env.js';
 import { db } from '../shared/database/client.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerErrorHandler } from './plugins/error-handler.js';
@@ -20,6 +25,19 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
   await registerAuth(app);
+
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: env.MEDIA_MAX_BYTES, files: 1, fields: 5 },
+    throwFileSizeLimit: false,
+  });
+
+  await mkdir(env.MEDIA_DIR, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: env.MEDIA_DIR,
+    prefix: '/media/',
+    decorateReply: false,
+    index: false,
+  });
 
   await app.register(fastifySwagger, {
     openapi: {

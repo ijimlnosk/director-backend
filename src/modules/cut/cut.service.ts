@@ -1,7 +1,8 @@
+import { storage } from '../../integrations/storage/index.js';
 import { conflict, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { buildCutCopy } from './cut.templates.js';
 import {
-  coverPhotoId,
+  coverPhoto,
   endSessionAndInsertCut,
   findCutRow,
   loadSessionForEnd,
@@ -11,8 +12,11 @@ import {
 import { toCutView, type CutRow, type CutView } from './cut.schema.js';
 
 async function assembleCutView(sessionId: string, cut: CutRow): Promise<CutView> {
-  const scenes = await sessionSceneBreakdown(sessionId);
-  return toCutView(cut, scenes);
+  const [scenes, cover] = await Promise.all([
+    sessionSceneBreakdown(sessionId),
+    coverPhoto(sessionId),
+  ]);
+  return toCutView(cut, scenes, cover ? storage.urlFor(cover.storageKey) : null);
 }
 
 /** End an active session and produce its Cut (End Credits). Idempotent on retry. */
@@ -54,7 +58,7 @@ export async function endSession(userId: string, sessionId: string): Promise<Cut
     summaryLine: copy.summaryLine,
     totalDistanceM: totals.totalWalkedM,
     runtimeSec,
-    coverPhotoId: await coverPhotoId(sessionId),
+    coverPhotoId: (await coverPhoto(sessionId))?.id ?? null,
   });
   return assembleCutView(sessionId, cut);
 }
