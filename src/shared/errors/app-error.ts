@@ -15,7 +15,9 @@ const STATUS_BY_KIND: Record<AppErrorKind, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   CONSTRAINT_FAILED: 422,
-  PROVIDER_FAILED: 502,
+  // 503 (not 502) so a CDN passes the JSON body through instead of showing
+  // its own gateway error page.
+  PROVIDER_FAILED: 503,
   INTERNAL: 500,
 };
 
