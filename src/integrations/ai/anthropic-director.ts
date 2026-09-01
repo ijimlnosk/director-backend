@@ -10,13 +10,14 @@ import {
 
 const SYSTEM_PROMPT = [
   'You are the Director for DIRECTOR, a real-world outing game.',
-  'Pick exactly ONE place from the provided candidates for the player\'s next MOVE scene.',
+  'Pick exactly ONE place from the provided candidates for the player\'s next scene, and a scene type.',
   'Rules:',
   '- placeId MUST be copied verbatim from one of the candidates. Never invent a placeId.',
+  '- sceneType MUST be one of allowedSceneTypes: "move" = just go there; "photo" = go there and take a photo; "observe" = go there and spend a minute taking it in. Vary it across scenes; do not always pick "move".',
   '- You are not given place names on purpose; the name is revealed to the player only after arrival.',
   '  Never guess or state a place name in title/body/hint.',
-  '- title: a short Korean teaser (<= 20 characters).',
-  '- body: 1-2 Korean sentences of direction and mood.',
+  '- title: a short Korean teaser (<= 20 characters), fitting the sceneType.',
+  '- body: 1-2 Korean sentences of direction and mood, telling the player what to do for that sceneType.',
   '- hint: one Korean sentence hinting at the place category.',
   '- Keep the choice feasible for the given transport and remaining minutes; prefer closer places when time is short.',
   '- purpose "walk": frame it as a relaxed stroll to see or pass by the place - never about eating. "food": a place to eat or drink. "culture": a museum/gallery/landmark to spend time at. "explore": anything goes.',
@@ -34,9 +35,10 @@ const SUBMIT_TOOL: Anthropic.Tool = {
   input_schema: {
     type: 'object',
     additionalProperties: false,
-    required: ['placeId', 'title', 'body', 'hint'],
+    required: ['placeId', 'sceneType', 'title', 'body', 'hint'],
     properties: {
       placeId: { type: 'string', description: 'Verbatim placeId of one candidate' },
+      sceneType: { type: 'string', enum: ['move', 'photo', 'observe'] },
       title: { type: 'string' },
       body: { type: 'string' },
       hint: { type: 'string' },

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import { formatDistance } from '../../shared/geo/distance.js';
 import { MIN_TIME_LIMIT_MIN } from './scene.constants.js';
-import { buildMoveScene, estimateTimeLimitMin } from './scene.templates.js';
+import { buildTemplateScene, estimateTimeLimitMin } from './scene.templates.js';
 
 test('formatDistance uses metres below 1km, rounded to 10m', () => {
   assert.equal(formatDistance(342), '340m');
@@ -26,12 +26,21 @@ test('estimateTimeLimitMin scales with distance and adds the buffer', () => {
   assert.equal(estimateTimeLimitMin(5000, 'transit'), 25);
 });
 
-test('buildMoveScene hides the place name and marks reveal-after-arrival', () => {
-  const scene = buildMoveScene({ category: '카페', distanceM: 800, transport: 'walk' });
+test('buildTemplateScene hides the place name and marks reveal-after-arrival', () => {
+  const scene = buildTemplateScene({ type: 'move', category: '카페', distanceM: 800, transport: 'walk' });
   assert.equal(scene.type, 'move');
   assert.equal(scene.revealNameAfterArrival, true);
   assert.equal(scene.title, '다음 장소로 이동');
   assert.match(scene.body, /도보/);
   assert.match(scene.hint, /카페/);
-  assert.equal(scene.timeLimitMin, estimateTimeLimitMin(800, 'walk'));
+  assert.equal(scene.timeLimitMin, estimateTimeLimitMin(800, 'walk', 'move'));
+});
+
+test('buildTemplateScene varies copy and time by scene type', () => {
+  const photo = buildTemplateScene({ type: 'photo', category: '문화시설', distanceM: 800, transport: 'walk' });
+  const observe = buildTemplateScene({ type: 'observe', category: '공원', distanceM: 800, transport: 'walk' });
+  assert.equal(photo.type, 'photo');
+  assert.match(photo.body, /사진/);
+  assert.ok(observe.timeLimitMin > photo.timeLimitMin);
+  assert.ok(photo.timeLimitMin > buildTemplateScene({ type: 'move', category: 'x', distanceM: 800, transport: 'walk' }).timeLimitMin);
 });

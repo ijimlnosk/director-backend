@@ -3,9 +3,11 @@ import {
   MIN_STEP_M,
   MIN_TIME_LIMIT_MIN,
   PER_HOP_TRAVEL_FRACTION,
+  SCENE_TYPE_EXTRA_MIN,
   SEARCH_RADIUS_M,
   TIME_LIMIT_BUFFER_MIN,
   TRAVEL_SPEED_M_PER_MIN,
+  type GeneratedSceneType,
   type Transport,
 } from './scene.constants.js';
 
@@ -20,8 +22,8 @@ export function hopRadiusM(transport: Transport, remainingMin: number): number {
   return Math.round(Math.min(SEARCH_RADIUS_M[transport], Math.max(floor, budget)));
 }
 
-export interface MoveSceneDraft {
-  type: 'move';
+export interface SceneDraft {
+  type: GeneratedSceneType;
   title: string;
   body: string;
   hint: string;
@@ -35,25 +37,53 @@ const TRANSPORT_LABEL: Record<Transport, string> = {
   car: '차량',
 };
 
-/** Deterministic travel-time estimate for a MOVE scene (minutes). */
-export function estimateTimeLimitMin(distanceM: number, transport: Transport): number {
+/** Travel-time estimate plus any stay-and-do allowance (minutes). */
+export function estimateTimeLimitMin(
+  distanceM: number,
+  transport: Transport,
+  sceneType: GeneratedSceneType = 'move',
+): number {
   const travel = distanceM / TRAVEL_SPEED_M_PER_MIN[transport];
-  return Math.max(MIN_TIME_LIMIT_MIN, Math.ceil(travel) + TIME_LIMIT_BUFFER_MIN);
+  return Math.max(
+    MIN_TIME_LIMIT_MIN,
+    Math.ceil(travel) + TIME_LIMIT_BUFFER_MIN + SCENE_TYPE_EXTRA_MIN[sceneType],
+  );
 }
 
-/** Build a template MOVE scene. The place name stays hidden until arrival. */
-export function buildMoveScene(input: {
+const TEMPLATE_COPY: Record<
+  GeneratedSceneType,
+  (category: string, distanceLabel: string, transportLabel: string) => { title: string; body: string; hint: string }
+> = {
+  move: (category, distanceLabel, transportLabel) => ({
+    title: '다음 장소로 이동',
+    body: `${transportLabel}(으)로 약 ${distanceLabel} 이동하세요. 도착하면 장소가 공개됩니다.`,
+    hint: `${category} 계열 장소입니다.`,
+  }),
+  photo: (category, distanceLabel, transportLabel) => ({
+    title: '한 컷 남기기',
+    body: `${transportLabel}(으)로 약 ${distanceLabel} 이동해, 그곳에서 마음에 드는 사진을 한 장 남겨보세요.`,
+    hint: `${category} 계열 장소입니다.`,
+  }),
+  observe: (category, distanceLabel, transportLabel) => ({
+    title: '잠시 머무르기',
+    body: `${transportLabel}(으)로 약 ${distanceLabel} 이동한 뒤, 1~2분간 주변을 천천히 살펴보세요.`,
+    hint: `${category} 계열 장소입니다.`,
+  }),
+};
+
+/** Build a template scene. The place name stays hidden until arrival. */
+export function buildTemplateScene(input: {
+  type: GeneratedSceneType;
   category: string;
   distanceM: number;
   transport: Transport;
-}): MoveSceneDraft {
-  const { category, distanceM, transport } = input;
+}): SceneDraft {
+  const { type, category, distanceM, transport } = input;
+  const copy = TEMPLATE_COPY[type](category, formatDistance(distanceM), TRANSPORT_LABEL[transport]);
   return {
-    type: 'move',
-    title: '다음 장소로 이동',
-    body: `${TRANSPORT_LABEL[transport]}(으)로 약 ${formatDistance(distanceM)} 이동하세요. 도착하면 장소가 공개됩니다.`,
-    hint: `${category} 계열 장소입니다.`,
-    timeLimitMin: estimateTimeLimitMin(distanceM, transport),
+    type,
+    ...copy,
+    timeLimitMin: estimateTimeLimitMin(distanceM, transport, type),
     revealNameAfterArrival: true,
   };
 }

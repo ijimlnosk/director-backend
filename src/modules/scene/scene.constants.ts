@@ -2,12 +2,30 @@ export type Transport = 'walk' | 'transit' | 'car';
 
 export type Purpose = 'explore' | 'walk' | 'food' | 'culture';
 
+/** Scene types the Director may generate (a subset of the DB enum). */
+export type GeneratedSceneType = 'move' | 'photo' | 'observe';
+
 /** `place.category` values a purpose draws from. Empty = no restriction. */
 export const PURPOSE_CATEGORIES: Record<Purpose, string[]> = {
   explore: [],
   walk: ['관광명소', '문화시설', '공원'],
   food: ['음식점', '카페'],
   culture: ['문화시설', '관광명소', '서점'],
+};
+
+/** Scene types eligible for a purpose; the first is the deterministic default. */
+export const PURPOSE_SCENE_TYPES: Record<Purpose, GeneratedSceneType[]> = {
+  explore: ['move', 'photo', 'observe'],
+  walk: ['move', 'observe', 'photo'],
+  food: ['move', 'photo'],
+  culture: ['move', 'photo', 'observe'],
+};
+
+/** Extra minutes on top of travel time for a stay-and-do scene. */
+export const SCENE_TYPE_EXTRA_MIN: Record<GeneratedSceneType, number> = {
+  move: 0,
+  photo: 5,
+  observe: 8,
 };
 
 /** Upper bound on how far the next place can be, by transport mode (metres). */

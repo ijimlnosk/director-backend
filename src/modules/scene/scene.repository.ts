@@ -10,7 +10,7 @@ import {
 } from '../../shared/database/schema.js';
 import { excludePlaceIdsSql } from './scene.candidates.js';
 import type { Purpose, Transport } from './scene.constants.js';
-import type { MoveSceneDraft } from './scene.templates.js';
+import type { SceneDraft } from './scene.templates.js';
 import type { SceneListRow, SceneRow } from './scene.schema.js';
 
 const SCENE_ROW_SQL = sql`
@@ -274,7 +274,7 @@ export async function listCandidates(
 /** Insert the next scene for an active session. */
 export async function insertNextScene(args: {
   sessionId: string;
-  draft: MoveSceneDraft;
+  draft: SceneDraft;
   placeId: string;
   distanceM: number;
   generatedBy: 'template' | 'llm';

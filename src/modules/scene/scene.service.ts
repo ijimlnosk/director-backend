@@ -4,8 +4,10 @@ import { conflict, constraintFailed, forbidden, notFound } from '../../shared/er
 import {
   MIN_STEP_M,
   PURPOSE_CATEGORIES,
+  PURPOSE_SCENE_TYPES,
   RECENT_CATEGORY_WINDOW,
   SAME_SPOT_M,
+  type GeneratedSceneType,
 } from './scene.constants.js';
 import {
   currentSceneRow,
@@ -21,10 +23,10 @@ import {
   type SessionContext,
 } from './scene.repository.js';
 import {
-  buildMoveScene,
+  buildTemplateScene,
   estimateTimeLimitMin,
   hopRadiusM,
-  type MoveSceneDraft,
+  type SceneDraft,
 } from './scene.templates.js';
 import {
   toSceneListItem,
@@ -39,27 +41,28 @@ interface SceneChoice {
   placeId: string;
   distanceM: number;
   generatedBy: 'template' | 'llm';
-  draft: MoveSceneDraft;
+  draft: SceneDraft;
 }
 
-/** No-AI pick: take the first of the (already shuffled) candidate pool. */
+/** No-AI pick: the first shuffled candidate, always a plain MOVE scene. */
 function deterministicChoice(pick: Candidate, transport: SessionContext['transport']): SceneChoice {
   const distanceM = Math.round(pick.distanceM);
   return {
     placeId: pick.placeId,
     distanceM,
     generatedBy: 'template',
-    draft: buildMoveScene({ category: pick.category, distanceM, transport }),
+    draft: buildTemplateScene({ type: 'move', category: pick.category, distanceM, transport }),
   };
 }
 
-/** Ask the AI Director to choose; fall back to deterministic on any failure. */
 interface DirectorHints {
   recentCategories: string[];
   preferredCategories: string[];
   avoidedCategories: string[];
+  allowedSceneTypes: GeneratedSceneType[];
 }
 
+/** Ask the AI Director to choose; fall back to deterministic on any failure. */
 async function chooseScene(
   session: SessionContext,
   remainingMin: number,
@@ -83,6 +86,7 @@ async function chooseScene(
       recentCategories: hints.recentCategories,
       preferredCategories: hints.preferredCategories,
       avoidedCategories: hints.avoidedCategories,
+      allowedSceneTypes: hints.allowedSceneTypes,
       candidates: candidates.map((c) => ({
         placeId: c.placeId,
         category: c.category,
@@ -95,17 +99,20 @@ async function chooseScene(
       throw new Error(`AI returned a placeId not in the candidate set: ${decision.placeId}`);
     }
 
+    const sceneType = hints.allowedSceneTypes.includes(decision.sceneType)
+      ? decision.sceneType
+      : 'move';
     const distanceM = Math.round(chosen.distanceM);
     return {
       placeId: chosen.placeId,
       distanceM,
       generatedBy: 'llm',
       draft: {
-        type: 'move',
+        type: sceneType,
         title: decision.title,
         body: decision.body,
         hint: decision.hint,
-        timeLimitMin: estimateTimeLimitMin(distanceM, session.transport),
+        timeLimitMin: estimateTimeLimitMin(distanceM, session.transport, sceneType),
         revealNameAfterArrival: true,
       },
     };
@@ -214,6 +221,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
       recentCategories,
       preferredCategories: prefs.preferred,
       avoidedCategories: prefs.avoided,
+      allowedSceneTypes: PURPOSE_SCENE_TYPES[session.purpose],
     },
     candidates,
   );

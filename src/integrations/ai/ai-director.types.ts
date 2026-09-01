@@ -19,6 +19,8 @@ export interface DirectorRequest {
   preferredCategories: string[];
   /** Categories the player tends to dislike - use only as a last resort. */
   avoidedCategories: string[];
+  /** Scene types the Director may choose for this scene. */
+  allowedSceneTypes: ('move' | 'photo' | 'observe')[];
   candidates: DirectorCandidate[];
 }
 
@@ -26,6 +28,7 @@ export interface DirectorRequest {
  *  deterministic checks (placeId in the candidate set, time budget). */
 export const directorDecisionSchema = z.object({
   placeId: z.string().min(1),
+  sceneType: z.enum(['move', 'photo', 'observe']),
   title: z.string().min(1).max(80),
   body: z.string().min(1).max(500),
   hint: z.string().min(1).max(300),
