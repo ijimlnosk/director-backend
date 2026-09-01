@@ -13,6 +13,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().max(65_535).default(3000),
   DATABASE_URL: z.url().startsWith('postgres'),
   JWT_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().max(2_592_000).default(3600),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
   AI_API_KEY: optionalString,
   AI_WORKSPACE_ID: optionalString,
   AI_MODEL: z.string().default('claude-opus-5'),

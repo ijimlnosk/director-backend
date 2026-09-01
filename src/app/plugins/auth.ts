@@ -25,6 +25,16 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
   });
 }
 
-export function signUserToken(app: FastifyInstance, userId: string): string {
-  return app.jwt.sign({ sub: userId });
+export function signAccessToken(app: FastifyInstance, userId: string): string {
+  return app.jwt.sign({ sub: userId }, { expiresIn: env.ACCESS_TOKEN_TTL_SEC });
+}
+
+/** The user id from a bearer token if one is present and valid, else null. */
+export async function optionalUserId(request: FastifyRequest): Promise<string | null> {
+  try {
+    const payload = await request.jwtVerify<{ sub: string }>();
+    return payload.sub;
+  } catch {
+    return null;
+  }
 }

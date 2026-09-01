@@ -19,6 +19,8 @@ export type UserView = z.infer<typeof userView>;
 
 export const registerDeviceResponse = z.object({
   token: z.string(),
+  refreshToken: z.string(),
+  expiresIn: z.number().int(),
   user: userView,
 });
 

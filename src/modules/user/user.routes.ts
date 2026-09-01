@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import { signUserToken } from '../../app/plugins/auth.js';
+import { issueForUser } from '../auth/auth.service.js';
 import {
   preferencesResponse,
   registerDeviceBody,
@@ -29,8 +29,8 @@ export async function userRoutes(fastify: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const user = await upsertUserByDeviceId(request.body);
-      const token = signUserToken(app, user.id);
-      return reply.code(201).send({ token, user });
+      const tokens = await issueForUser(app, user.id);
+      return reply.code(201).send({ ...tokens, user });
     },
   );
 

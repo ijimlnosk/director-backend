@@ -64,6 +64,13 @@
       "when": 1788254176578,
       "tag": "0008_feedback_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788255025624,
+      "tag": "0009_social_login",
+      "breakpoints": true
     }
   ]
 }

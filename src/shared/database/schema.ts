@@ -46,11 +46,27 @@ export const users = pgTable('user', {
   id: uuid('id').defaultRandom().primaryKey(),
   deviceId: text('device_id').notNull().unique(),
   handle: text('handle'),
+  provider: text('provider'),
+  providerUserId: text('provider_user_id'),
+  email: text('email'),
   homeAreaId: uuid('home_area_id').references(() => areas.id),
   subscription: subscriptionEnum('subscription').notNull().default('free'),
   locationPermission: locationPermissionEnum('location_permission').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex('user_provider_uq')
+    .on(table.provider, table.providerUserId)
+    .where(sql`${table.providerUserId} is not null`),
+]);
+
+export const refreshTokens = pgTable('refresh_token', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index('refresh_token_user_id_idx').on(table.userId)]);
 
 export const scenarioPacks = pgTable('scenario_pack', {
   id: uuid('id').defaultRandom().primaryKey(),
