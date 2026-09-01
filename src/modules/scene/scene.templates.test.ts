@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { formatDistance } from '../../shared/geo/distance.js';
 import { MIN_TIME_LIMIT_MIN } from './scene.constants.js';
-import { buildMoveScene, estimateTimeLimitMin, formatDistance } from './scene.templates.js';
+import { buildMoveScene, estimateTimeLimitMin } from './scene.templates.js';
 
 test('formatDistance uses metres below 1km, rounded to 10m', () => {
   assert.equal(formatDistance(342), '340m');

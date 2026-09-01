@@ -1,3 +1,4 @@
+import { formatDistance } from '../../shared/geo/distance.js';
 import {
   MIN_TIME_LIMIT_MIN,
   TIME_LIMIT_BUFFER_MIN,
@@ -19,11 +20,6 @@ const TRANSPORT_LABEL: Record<Transport, string> = {
   transit: '대중교통',
   car: '차량',
 };
-
-export function formatDistance(distanceM: number): string {
-  if (distanceM < 1000) return `${Math.round(distanceM / 10) * 10}m`;
-  return `${(distanceM / 1000).toFixed(1)}km`;
-}
 
 /** Deterministic travel-time estimate for a MOVE scene (minutes). */
 export function estimateTimeLimitMin(distanceM: number, transport: Transport): number {
