@@ -85,6 +85,13 @@
       "when": 1788270543314,
       "tag": "0011_scene_extend_abort",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788271513932,
+      "tag": "0012_photo_metadata",
+      "breakpoints": true
     }
   ]
 }

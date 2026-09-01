@@ -64,10 +64,12 @@ export async function sessionSceneBreakdown(sessionId: string): Promise<CutScene
            s.title as "title",
            r.outcome as "outcome",
            p.name as "placeName",
-           s.distance_m as "distanceM"
+           s.distance_m as "distanceM",
+           ph.storage_key as "photoStorageKey"
     from scene s
     left join scene_result r on r.scene_id = s.id
     left join place p on p.id = s.place_id
+    left join photo ph on ph.scene_result_id = r.id and ph.status = 'ready'
     where s.session_id = ${sessionId}
     order by s.seq
   `);

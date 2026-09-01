@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  boolean, customType, date, index, integer, jsonb, pgEnum, pgTable,
+  boolean, customType, date, doublePrecision, index, integer, jsonb, pgEnum, pgTable,
   primaryKey, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -178,6 +178,11 @@ export const photos = pgTable('photo', {
   bytes: integer('bytes'),
   width: integer('width'),
   height: integer('height'),
+  title: text('title'),
+  description: text('description'),
+  capturedAt: timestamp('captured_at', { withTimezone: true }),
+  lat: doublePrecision('lat'),
+  lng: doublePrecision('lng'),
   takenAt: timestamp('taken_at', { withTimezone: true }).defaultNow().notNull(),
   includeInCredits: boolean('include_in_credits').notNull().default(true),
 });

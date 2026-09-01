@@ -19,10 +19,18 @@ import { toCutView, type CutRow, type CutView } from './cut.schema.js';
 const newSlug = (): string => randomBytes(9).toString('base64url');
 
 async function assembleCutView(sessionId: string, cut: CutRow): Promise<CutView> {
-  const [scenes, cover] = await Promise.all([
+  const [rawScenes, cover] = await Promise.all([
     sessionSceneBreakdown(sessionId),
     coverPhoto(sessionId),
   ]);
+  const scenes = await Promise.all(
+    rawScenes.map(async ({ photoStorageKey, ...line }) => ({
+      ...line,
+      photoUrl: photoStorageKey
+        ? await storage.presignGet(photoStorageKey, GET_URL_TTL_SEC)
+        : null,
+    })),
+  );
   const coverUrl = cover ? await storage.presignGet(cover.storageKey, GET_URL_TTL_SEC) : null;
   return toCutView(cut, scenes, coverUrl);
 }

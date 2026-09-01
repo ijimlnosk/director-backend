@@ -117,6 +117,7 @@ export interface SceneRow {
 export const sceneListItem = sceneView.extend({
   outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed', 'aborted']).nullable(),
   resolvedAt: z.string().nullable(),
+  photoUrl: z.url().nullable(),
 });
 
 export type SceneListItem = z.infer<typeof sceneListItem>;
@@ -128,13 +129,15 @@ export const currentSceneResponse = z.object({ scene: sceneView.nullable() });
 export interface SceneListRow extends SceneRow {
   outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | 'aborted' | null;
   resolvedAt: Date | null;
+  photoStorageKey: string | null;
 }
 
-export function toSceneListItem(row: SceneListRow): SceneListItem {
+export function toSceneListItem(row: SceneListRow, photoUrl: string | null): SceneListItem {
   return {
     ...toSceneView(row),
     outcome: row.outcome,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    photoUrl,
   };
 }
 

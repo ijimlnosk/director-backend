@@ -1,4 +1,5 @@
 import { aiDirector } from '../../integrations/ai/index.js';
+import { GET_URL_TTL_SEC, storage } from '../../integrations/storage/index.js';
 import { outdoorAdvisory } from '../../integrations/weather/advisory.js';
 import { weatherSnapshotSchema } from '../../integrations/weather/weather.types.js';
 import { countJoined, findParticipant } from '../participant/participant.repository.js';
@@ -163,7 +164,17 @@ export async function listSessionScenes(
   sessionId: string,
 ): Promise<SceneListItem[]> {
   await assertSceneReader(userId, sessionId);
-  return (await listSceneRows(sessionId)).map(toSceneListItem);
+  const rows = await listSceneRows(sessionId);
+  return Promise.all(
+    rows.map(async (row) =>
+      toSceneListItem(
+        row,
+        row.photoStorageKey
+          ? await storage.presignGet(row.photoStorageKey, GET_URL_TTL_SEC)
+          : null,
+      ),
+    ),
+  );
 }
 
 /** The scene to resume (latest unresolved), or null if there is none. */

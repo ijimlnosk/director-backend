@@ -8,7 +8,7 @@ export interface SceneResultForPhoto {
   sceneResultId: string;
   sessionId: string;
   hostUserId: string;
-  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed';
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | 'aborted';
 }
 
 export async function loadSceneResultForPhoto(
@@ -36,26 +36,23 @@ export interface PhotoFull extends PhotoRow {
   hostUserId: string;
 }
 
-const READY_RETURN = {
-  id: photos.id,
-  contentType: photos.contentType,
-  bytes: photos.bytes,
-  width: photos.width,
-  height: photos.height,
-  takenAt: photos.takenAt,
-  includeInCredits: photos.includeInCredits,
-} as const;
-
 const PHOTO_FULL = {
   id: photos.id,
   sceneResultId: photos.sceneResultId,
   storageKey: photos.storageKey,
   status: photos.status,
   hostUserId: sessions.hostUserId,
+  sceneId: scenes.id,
+  sceneTitle: scenes.title,
+  title: photos.title,
+  description: photos.description,
   contentType: photos.contentType,
   bytes: photos.bytes,
   width: photos.width,
   height: photos.height,
+  capturedAt: photos.capturedAt,
+  lat: photos.lat,
+  lng: photos.lng,
   takenAt: photos.takenAt,
   includeInCredits: photos.includeInCredits,
 } as const;
@@ -89,7 +86,19 @@ export async function upsertPendingPhoto(
     .values({ sceneResultId, storageKey, status: 'pending' })
     .onConflictDoUpdate({
       target: photos.sceneResultId,
-      set: { storageKey, status: 'pending', contentType: null, bytes: null },
+      set: {
+        storageKey,
+        status: 'pending',
+        contentType: null,
+        bytes: null,
+        width: null,
+        height: null,
+        title: null,
+        description: null,
+        capturedAt: null,
+        lat: null,
+        lng: null,
+      },
     })
     .returning({ id: photos.id });
   return row!.id;
@@ -101,8 +110,13 @@ export async function markPhotoReady(args: {
   bytes: number;
   width: number | null;
   height: number | null;
-}): Promise<PhotoRow> {
-  const [row] = await db
+  title: string | null;
+  description: string | null;
+  capturedAt: Date | null;
+  lat: number | null;
+  lng: number | null;
+}): Promise<void> {
+  await db
     .update(photos)
     .set({
       status: 'ready',
@@ -110,20 +124,24 @@ export async function markPhotoReady(args: {
       bytes: args.bytes,
       width: args.width,
       height: args.height,
+      title: args.title,
+      description: args.description,
+      capturedAt: args.capturedAt,
+      lat: args.lat,
+      lng: args.lng,
     })
-    .where(eq(photos.id, args.photoId))
-    .returning(READY_RETURN);
-  return row!;
+    .where(eq(photos.id, args.photoId));
 }
 
-export async function setIncludeInCredits(
-  photoId: string,
-  includeInCredits: boolean,
-): Promise<PhotoRow> {
-  const [row] = await db
-    .update(photos)
-    .set({ includeInCredits })
-    .where(eq(photos.id, photoId))
-    .returning(READY_RETURN);
-  return row!;
+export interface PhotoMetaPatch {
+  includeInCredits?: boolean;
+  title?: string;
+  description?: string;
+  capturedAt?: Date;
+  lat?: number;
+  lng?: number;
+}
+
+export async function updatePhotoMeta(photoId: string, patch: PhotoMetaPatch): Promise<void> {
+  await db.update(photos).set(patch).where(eq(photos.id, photoId));
 }

@@ -13,11 +13,17 @@ import {
   findPhotoForScene,
   loadSceneResultForPhoto,
   markPhotoReady,
-  setIncludeInCredits,
+  updatePhotoMeta,
   upsertPendingPhoto,
   type PhotoFull,
+  type PhotoMetaPatch,
 } from './photo.repository.js';
-import { toPhotoView, type CompletePhotoInput, type PhotoView } from './photo.schema.js';
+import {
+  toPhotoView,
+  type CompletePhotoInput,
+  type PhotoView,
+  type UpdatePhotoInput,
+} from './photo.schema.js';
 
 export interface UploadUrlResult {
   photoId: string;
@@ -59,6 +65,10 @@ export async function createUploadUrl(
   };
 }
 
+async function viewOf(photo: PhotoFull): Promise<PhotoView> {
+  return toPhotoView(photo, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
+}
+
 /** Verify the uploaded object and mark the photo ready. */
 export async function completePhoto(
   userId: string,
@@ -85,14 +95,19 @@ export async function completePhoto(
     throw validationFailed('missing content type on the uploaded object');
   }
 
-  const row = await markPhotoReady({
+  await markPhotoReady({
     photoId,
     contentType: head.contentType,
     bytes: head.contentLength,
     width: body.width ?? null,
     height: body.height ?? null,
+    title: body.title ?? null,
+    description: body.description ?? null,
+    capturedAt: body.capturedAt ? new Date(body.capturedAt) : null,
+    lat: body.location?.lat ?? null,
+    lng: body.location?.lng ?? null,
   });
-  return toPhotoView(row, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
+  return viewOf((await findPhotoById(photoId))!);
 }
 
 async function readablePhoto(userId: string, photo: PhotoFull | undefined): Promise<PhotoView> {
@@ -102,7 +117,7 @@ async function readablePhoto(userId: string, photo: PhotoFull | undefined): Prom
   if (photo.hostUserId !== userId) {
     throw forbidden('You do not have access to this photo');
   }
-  return toPhotoView(photo, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
+  return viewOf(photo);
 }
 
 /** Fresh signed URL + metadata for a scene's photo. */
@@ -114,11 +129,11 @@ export async function getPhoto(userId: string, photoId: string): Promise<PhotoVi
   return readablePhoto(userId, await findPhotoById(photoId));
 }
 
-/** Toggle whether a photo appears in the End Credits. */
-export async function updatePhotoInclusion(
+/** Update a ready photo's credits flag and/or its metadata. */
+export async function updatePhoto(
   userId: string,
   photoId: string,
-  includeInCredits: boolean,
+  body: UpdatePhotoInput,
 ): Promise<PhotoView> {
   const photo = await findPhotoById(photoId);
   if (photo === undefined || photo.status !== 'ready') {
@@ -127,6 +142,17 @@ export async function updatePhotoInclusion(
   if (photo.hostUserId !== userId) {
     throw forbidden('You do not have access to this photo');
   }
-  const row = await setIncludeInCredits(photoId, includeInCredits);
-  return toPhotoView(row, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
+
+  const patch: PhotoMetaPatch = {};
+  if (body.includeInCredits !== undefined) patch.includeInCredits = body.includeInCredits;
+  if (body.title !== undefined) patch.title = body.title;
+  if (body.description !== undefined) patch.description = body.description;
+  if (body.capturedAt !== undefined) patch.capturedAt = new Date(body.capturedAt);
+  if (body.location !== undefined) {
+    patch.lat = body.location.lat;
+    patch.lng = body.location.lng;
+  }
+
+  await updatePhotoMeta(photoId, patch);
+  return viewOf((await findPhotoById(photoId))!);
 }

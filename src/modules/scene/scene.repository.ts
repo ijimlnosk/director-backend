@@ -2,6 +2,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
 import {
+  photos,
   places,
   sceneResults,
   scenes,
@@ -35,10 +36,12 @@ export async function listSceneRows(sessionId: string): Promise<SceneListRow[]> 
   const rows = await db.execute(sql`
     select ${SCENE_ROW_SQL},
            ${sceneResults.outcome} as "outcome",
-           ${sceneResults.recordedAt} as "resolvedAt"
+           ${sceneResults.recordedAt} as "resolvedAt",
+           ${photos.storageKey} as "photoStorageKey"
     from ${scenes}
     left join ${places} on ${places.id} = ${scenes.placeId}
     left join ${sceneResults} on ${sceneResults.sceneId} = ${scenes.id}
+    left join ${photos} on ${photos.sceneResultId} = ${sceneResults.id} and ${photos.status} = 'ready'
     where ${scenes.sessionId} = ${sessionId}
     order by ${scenes.seq}
   `);

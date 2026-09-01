@@ -9,6 +9,7 @@ export const cutSceneLine = z.object({
   outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed', 'aborted']).nullable(),
   placeName: z.string().nullable(),
   distanceM: z.number().int(),
+  photoUrl: z.url().nullable(),
 });
 
 export const cutView = z.object({
@@ -58,11 +59,12 @@ export interface CutSceneRow {
   outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | 'aborted' | null;
   placeName: string | null;
   distanceM: number;
+  photoStorageKey: string | null;
 }
 
 export function toCutView(
   cut: CutRow,
-  scenes: CutSceneRow[],
+  scenes: CutView['scenes'],
   coverPhotoUrl: string | null,
 ): CutView {
   return { ...cut, coverPhotoUrl, scenes };

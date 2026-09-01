@@ -15,7 +15,7 @@ import {
   createUploadUrl,
   getPhoto,
   getScenePhoto,
-  updatePhotoInclusion,
+  updatePhoto,
 } from './photo.service.js';
 
 export async function photoRoutes(fastify: FastifyInstance): Promise<void> {
@@ -100,7 +100,7 @@ export async function photoRoutes(fastify: FastifyInstance): Promise<void> {
       ...auth,
       schema: {
         tags: ['photo'],
-        summary: 'Toggle whether a photo appears in the End Credits',
+        summary: 'Update a photo: credits flag and/or metadata (title, description, capturedAt, location)',
         security: [{ bearerAuth: [] }],
         params: photoIdParams,
         body: updatePhotoBody,
@@ -108,11 +108,7 @@ export async function photoRoutes(fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request) => ({
-      photo: await updatePhotoInclusion(
-        request.user.sub,
-        request.params.photoId,
-        request.body.includeInCredits,
-      ),
+      photo: await updatePhoto(request.user.sub, request.params.photoId, request.body),
     }),
   );
 }
