@@ -14,8 +14,20 @@ const baseRow: SessionRow = {
   lat: 37.5665,
   lng: 126.978,
   areaId: '33333333-3333-4333-8333-333333333333',
+  weatherSnapshot: null,
   startedAt: null,
   endedAt: null,
+};
+
+const weatherRow = {
+  fetchedAt: '2026-09-01T10:00:00.000Z',
+  tempC: 21.5,
+  apparentTempC: 20.1,
+  precipitationMm: 0,
+  windSpeedMs: 2.3,
+  weatherCode: 1,
+  isDay: true,
+  summary: 'clear' as const,
 };
 
 test('toSessionView reshapes point into origin and drops hostUserId', () => {
@@ -28,6 +40,17 @@ test('toSessionView reshapes point into origin and drops hostUserId', () => {
 test('toSessionView serialises timestamps to ISO strings', () => {
   const view = toSessionView({ ...baseRow, startedAt: new Date('2026-09-01T10:00:00Z') });
   assert.equal(view.startedAt, '2026-09-01T10:00:00.000Z');
+});
+
+test('toSessionView passes through a valid weather snapshot', () => {
+  const view = toSessionView({ ...baseRow, weatherSnapshot: weatherRow });
+  assert.equal(view.weather?.summary, 'clear');
+  assert.equal(view.weather?.tempC, 21.5);
+});
+
+test('toSessionView nulls out a malformed weather snapshot', () => {
+  const view = toSessionView({ ...baseRow, weatherSnapshot: { junk: true } });
+  assert.equal(view.weather, null);
 });
 
 test('createSessionBody rejects out-of-range latitude', () => {

@@ -112,10 +112,9 @@ export async function listCandidates(
   return rows as unknown as Candidate[];
 }
 
-/** Insert the next scene, activating a draft session in the same transaction. */
+/** Insert the next scene for an active session. */
 export async function insertNextScene(args: {
   sessionId: string;
-  activateDraft: boolean;
   draft: MoveSceneDraft;
   placeId: string;
   distanceM: number;
@@ -156,13 +155,6 @@ export async function insertNextScene(args: {
         revealNameAfterArrival: scenes.revealNameAfterArrival,
         createdAt: scenes.createdAt,
       });
-
-    if (args.activateDraft) {
-      await tx
-        .update(sessions)
-        .set({ status: 'active', startedAt: new Date() })
-        .where(and(eq(sessions.id, args.sessionId), eq(sessions.status, 'draft')));
-    }
 
     const coordRows = await tx.execute(sql`
       select ST_Y(${places.point}::geometry) as "targetLat",

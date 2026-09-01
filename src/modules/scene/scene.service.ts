@@ -13,7 +13,7 @@ import {
 import { buildMoveScene, estimateTimeLimitMin, type MoveSceneDraft } from './scene.templates.js';
 import { toSceneView, type SceneView } from './scene.schema.js';
 
-const SCENE_GENERATABLE_STATUS = new Set(['draft', 'active']);
+const SCENE_GENERATABLE_STATUS = new Set(['active']);
 
 interface SceneChoice {
   placeId: string;
@@ -94,7 +94,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     throw forbidden('You do not have access to this session');
   }
   if (!SCENE_GENERATABLE_STATUS.has(session.status)) {
-    throw conflict(`Session is ${session.status}; cannot generate a scene`);
+    throw conflict(`Session is ${session.status}; start the session before requesting a scene`);
   }
 
   const unresolved = await unresolvedSceneSeq(sessionId);
@@ -132,7 +132,6 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
 
   const row = await insertNextScene({
     sessionId,
-    activateDraft: session.status === 'draft',
     draft: choice.draft,
     placeId: choice.placeId,
     distanceM: choice.distanceM,

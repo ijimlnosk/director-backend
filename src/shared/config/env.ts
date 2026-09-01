@@ -17,6 +17,7 @@ const envSchema = z.object({
   AI_WORKSPACE_ID: optionalString,
   AI_MODEL: z.string().default('claude-opus-5'),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(8000),
+  WEATHER_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
 });
 
 export const env = envSchema.parse(process.env);

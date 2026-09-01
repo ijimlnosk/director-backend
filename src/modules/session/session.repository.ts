@@ -1,7 +1,8 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
 import { areas, sessions } from '../../shared/database/schema.js';
+import type { WeatherSnapshot } from '../../integrations/weather/weather.types.js';
 import type { CreateSessionInput, SessionRow } from './session.schema.js';
 
 const point = (lng: number, lat: number) =>
@@ -18,6 +19,7 @@ const ROW_SELECT = {
   lat: sql<number>`ST_Y(${sessions.originPoint}::geometry)`.as('lat'),
   lng: sql<number>`ST_X(${sessions.originPoint}::geometry)`.as('lng'),
   areaId: sessions.areaId,
+  weatherSnapshot: sessions.weatherSnapshot,
   startedAt: sessions.startedAt,
   endedAt: sessions.endedAt,
 } as const;
@@ -49,5 +51,18 @@ export async function insertDraftSession(
 
 export async function findSessionById(id: string): Promise<SessionRow | undefined> {
   const [row] = await db.select(ROW_SELECT).from(sessions).where(eq(sessions.id, id)).limit(1);
+  return row;
+}
+
+/** Flip a draft session to active, stamping the start time and weather snapshot. */
+export async function activateSession(
+  sessionId: string,
+  weather: WeatherSnapshot | null,
+): Promise<SessionRow | undefined> {
+  const [row] = await db
+    .update(sessions)
+    .set({ status: 'active', startedAt: new Date(), weatherSnapshot: weather })
+    .where(and(eq(sessions.id, sessionId), eq(sessions.status, 'draft')))
+    .returning(ROW_SELECT);
   return row;
 }
