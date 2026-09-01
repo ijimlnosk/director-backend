@@ -1,12 +1,18 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
-import { userPreferences, users } from '../../shared/database/schema.js';
-import type { PreferencesView, RegisterDeviceInput, UserView } from './user.schema.js';
+import { areas, userPreferences, users } from '../../shared/database/schema.js';
+import type {
+  PreferencesView,
+  RegisterDeviceInput,
+  UpdateMeInput,
+  UserView,
+} from './user.schema.js';
 
 const VIEW_COLUMNS = {
   id: users.id,
   handle: users.handle,
+  homeAreaId: users.homeAreaId,
   subscription: users.subscription,
   locationPermission: users.locationPermission,
 } as const;
@@ -35,6 +41,23 @@ export async function upsertUserByDeviceId(input: RegisterDeviceInput): Promise<
 export async function findUserById(id: string): Promise<UserView | undefined> {
   const [row] = await db.select(VIEW_COLUMNS).from(users).where(eq(users.id, id)).limit(1);
   return row;
+}
+
+export async function liveAreaExists(areaId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: areas.id })
+    .from(areas)
+    .where(and(eq(areas.id, areaId), eq(areas.isLive, true)))
+    .limit(1);
+  return row !== undefined;
+}
+
+export async function updateUser(userId: string, patch: UpdateMeInput): Promise<UserView> {
+  const set: Partial<{ handle: string | null; homeAreaId: string | null }> = {};
+  if ('handle' in patch) set.handle = patch.handle ?? null;
+  if ('homeAreaId' in patch) set.homeAreaId = patch.homeAreaId ?? null;
+  const [row] = await db.update(users).set(set).where(eq(users.id, userId)).returning(VIEW_COLUMNS);
+  return row!;
 }
 
 export async function getUserPreferences(userId: string): Promise<PreferencesView> {

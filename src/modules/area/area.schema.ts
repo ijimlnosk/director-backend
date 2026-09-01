@@ -6,9 +6,22 @@ export const areaView = z.object({
   id: z.uuid(),
   name: z.string(),
   center: z.object({ lat: z.number(), lng: z.number() }),
+  /** Metres from the query point to the area, when `near` is given. */
+  distanceM: z.number().nullable(),
+  /** Whether the query point falls inside the area, when `near` is given. */
+  containsPoint: z.boolean(),
 });
 
 export type AreaView = z.infer<typeof areaView>;
+
+export const listAreasQuery = z.object({
+  near: z
+    .string()
+    .regex(/^-?\d{1,2}(\.\d+)?,-?\d{1,3}(\.\d+)?$/, 'near must be "lat,lng"')
+    .optional(),
+});
+
+export type ListAreasQuery = z.infer<typeof listAreasQuery>;
 
 export const areasResponse = z.object({ areas: z.array(areaView) });
 

@@ -10,6 +10,7 @@ import {
   createAreaBody,
   ingestPlacesBody,
   ingestPlacesResponse,
+  listAreasQuery,
 } from './area.schema.js';
 import { ingestAreaPlaces } from './area.service.js';
 import { insertArea, listLiveAreas } from './area.repository.js';
@@ -31,11 +32,19 @@ export async function areaRoutes(fastify: FastifyInstance): Promise<void> {
     {
       schema: {
         tags: ['area'],
-        summary: 'List live areas a session can start in',
+        summary: 'List live areas; with ?near=lat,lng ranked by distance',
+        querystring: listAreasQuery,
         response: { 200: areasResponse },
       },
     },
-    async () => ({ areas: await listLiveAreas() }),
+    async (request) => {
+      let near: { lat: number; lng: number } | undefined;
+      if (request.query.near) {
+        const [lat, lng] = request.query.near.split(',');
+        near = { lat: Number(lat), lng: Number(lng) };
+      }
+      return { areas: await listLiveAreas(near) };
+    },
   );
 
   app.post(

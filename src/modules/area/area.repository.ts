@@ -5,20 +5,51 @@ import { areas, places } from '../../shared/database/schema.js';
 import type { PlaceCandidate } from '../../integrations/places/places.types.js';
 import type { AreaView, CreateAreaInput } from './area.schema.js';
 
-/** Live areas a session can start in, with the polygon centroid. */
-export async function listLiveAreas(): Promise<AreaView[]> {
+interface AreaRow {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  distanceM: number | null;
+  containsPoint: boolean;
+}
+
+const toAreaView = (row: AreaRow): AreaView => ({
+  id: row.id,
+  name: row.name,
+  center: { lat: row.lat, lng: row.lng },
+  distanceM: row.distanceM === null ? null : Math.round(row.distanceM),
+  containsPoint: row.containsPoint,
+});
+
+/** Live areas a session can start in. With `near`, ranked by distance to the
+ *  query point and flagged when the point is inside the area. */
+export async function listLiveAreas(near?: { lat: number; lng: number }): Promise<AreaView[]> {
+  if (near === undefined) {
+    const rows = await db.execute(sql`
+      select ${areas.id} as "id", ${areas.name} as "name",
+             ST_Y(ST_Centroid(${areas.bounds})::geometry) as "lat",
+             ST_X(ST_Centroid(${areas.bounds})::geometry) as "lng",
+             null::float as "distanceM", false as "containsPoint"
+      from ${areas}
+      where ${areas.isLive} = true
+      order by ${areas.name}
+    `);
+    return (rows as unknown as AreaRow[]).map(toAreaView);
+  }
+
+  const point = sql`ST_SetSRID(ST_MakePoint(${near.lng}, ${near.lat}), 4326)::geography`;
   const rows = await db.execute(sql`
-    select ${areas.id} as "id",
-           ${areas.name} as "name",
+    select ${areas.id} as "id", ${areas.name} as "name",
            ST_Y(ST_Centroid(${areas.bounds})::geometry) as "lat",
-           ST_X(ST_Centroid(${areas.bounds})::geometry) as "lng"
+           ST_X(ST_Centroid(${areas.bounds})::geometry) as "lng",
+           ST_Distance(${areas.bounds}, ${point}) as "distanceM",
+           ST_Covers(${areas.bounds}::geometry, ${point}::geometry) as "containsPoint"
     from ${areas}
     where ${areas.isLive} = true
-    order by ${areas.name}
+    order by "containsPoint" desc, "distanceM" asc
   `);
-  return (rows as unknown as { id: string; name: string; lat: number; lng: number }[]).map(
-    (row) => ({ id: row.id, name: row.name, center: { lat: row.lat, lng: row.lng } }),
-  );
+  return (rows as unknown as AreaRow[]).map(toAreaView);
 }
 
 /** Create an area whose bounds is a circular buffer around the given centre. */
@@ -39,7 +70,13 @@ export async function insertArea(input: CreateAreaInput): Promise<AreaView> {
               ST_X(ST_Centroid(bounds)::geometry) as "lng"
   `);
   const row = (rows as unknown as { id: string; name: string; lat: number; lng: number }[])[0]!;
-  return { id: row.id, name: row.name, center: { lat: row.lat, lng: row.lng } };
+  return {
+    id: row.id,
+    name: row.name,
+    center: { lat: row.lat, lng: row.lng },
+    distanceM: null,
+    containsPoint: false,
+  };
 }
 
 export async function areaCentroid(

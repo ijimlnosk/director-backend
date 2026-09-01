@@ -11,11 +11,24 @@ export type RegisterDeviceInput = z.infer<typeof registerDeviceBody>;
 export const userView = z.object({
   id: z.uuid(),
   handle: z.string().nullable(),
+  homeAreaId: z.uuid().nullable(),
   subscription: z.enum(['free', 'plus']),
   locationPermission: z.enum(['granted', 'denied']),
 });
 
 export type UserView = z.infer<typeof userView>;
+
+export const meResponse = z.object({ user: userView });
+
+export const updateMeBody = z
+  .object({
+    handle: z.string().trim().min(1).max(50).nullable(),
+    homeAreaId: z.uuid().nullable(),
+  })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'provide at least one field');
+
+export type UpdateMeInput = z.infer<typeof updateMeBody>;
 
 export const registerDeviceResponse = z.object({
   token: z.string(),
