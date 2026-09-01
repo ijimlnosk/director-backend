@@ -2,6 +2,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
 import { places, sceneResults, scenes, sessions } from '../../shared/database/schema.js';
+import { excludePlaceIdsSql } from './scene.candidates.js';
 import type { Transport } from './scene.constants.js';
 import type { MoveSceneDraft } from './scene.templates.js';
 import type { SceneRow } from './scene.schema.js';
@@ -83,9 +84,7 @@ export async function listCandidates(
   limit = 12,
 ): Promise<Candidate[]> {
   const origin = geo(args.originLng, args.originLat);
-  const exclude = args.excludePlaceIds.length
-    ? sql`and not (${places.id} = any(${args.excludePlaceIds}::uuid[]))`
-    : sql``;
+  const exclude = excludePlaceIdsSql(args.excludePlaceIds);
 
   // TODO: opening-hours filter once open_hours shape + session timezone are settled.
   const rows = await db.execute(sql`
