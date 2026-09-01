@@ -3,7 +3,12 @@ import { test } from 'node:test';
 
 import { formatDistance } from '../../shared/geo/distance.js';
 import { MIN_TIME_LIMIT_MIN } from './scene.constants.js';
-import { buildTemplateScene, estimateTimeLimitMin } from './scene.templates.js';
+import {
+  buildTemplateScene,
+  estimateTimeLimitMin,
+  routeHint,
+  timeLimitFromDurationSec,
+} from './scene.templates.js';
 
 test('formatDistance uses metres below 1km, rounded to 10m', () => {
   assert.equal(formatDistance(342), '340m');
@@ -35,6 +40,30 @@ test('buildTemplateScene hides the place name and marks reveal-after-arrival', (
   assert.match(scene.hint, /카페/);
   assert.match(scene.body, /북동쪽/);
   assert.equal(scene.timeLimitMin, estimateTimeLimitMin(800, 'walk', 'move'));
+});
+
+test('timeLimitFromDurationSec converts real seconds and adds buffer/floor', () => {
+  assert.equal(timeLimitFromDurationSec(30, 'move'), MIN_TIME_LIMIT_MIN);
+  assert.equal(timeLimitFromDurationSec(600, 'move'), 15); // 10 min + 5 buffer
+  assert.equal(timeLimitFromDurationSec(600, 'photo'), 20); // + 5 stay
+});
+
+test('routeHint states only trusted route data', () => {
+  const hint = routeHint({
+    distanceM: 2345,
+    durationSec: 780,
+    mainRoads: ['강남대로', '테헤란로'],
+    firstStep: { instruction: '우회전', roadName: '강남대로', distanceM: 1200 },
+  });
+  assert.match(hint, /2\.3km/);
+  assert.match(hint, /13분/);
+  assert.match(hint, /강남대로 → 테헤란로 경유/);
+  assert.match(hint, /강남대로에서 우회전/);
+});
+
+test('routeHint omits missing parts', () => {
+  const hint = routeHint({ distanceM: 500, durationSec: 120, mainRoads: [], firstStep: null });
+  assert.equal(hint, '약 500m, 차로 2분.');
 });
 
 test('buildTemplateScene varies copy and time by scene type', () => {

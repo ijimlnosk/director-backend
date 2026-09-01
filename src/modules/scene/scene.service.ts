@@ -31,10 +31,13 @@ import {
   type SessionContext,
 } from './scene.repository.js';
 import { findParkingNear } from './scene.parking.js';
+import { findRouteTo } from './scene.route.js';
 import {
   buildTemplateScene,
   estimateTimeLimitMin,
   hopRadiusM,
+  routeHint,
+  timeLimitFromDurationSec,
   type SceneDraft,
 } from './scene.templates.js';
 import {
@@ -293,6 +296,23 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     candidates,
   );
 
+  // Driving sessions: a trusted route (Kakao Mobility) and nearby parking.
+  const chosenCandidate = candidates.find((c) => c.placeId === choice.placeId);
+  const destination =
+    session.transport === 'car' && chosenCandidate !== undefined
+      ? { lat: chosenCandidate.lat, lng: chosenCandidate.lng }
+      : null;
+  const [route, parking] = destination
+    ? await Promise.all([findRouteTo(anchor, destination), findParkingNear(destination)])
+    : [null, null];
+
+  // A trusted route replaces the estimate: real road names in the hint, real
+  // duration for the time limit.
+  if (route !== null) {
+    choice.draft.hint = routeHint(route);
+    choice.draft.timeLimitMin = timeLimitFromDurationSec(route.durationSec, choice.draft.type);
+  }
+
   // Final deterministic check: the scene must fit the remaining session time.
   if (choice.draft.timeLimitMin > remainingMin) {
     throw constraintFailed('Not enough session time remains for another scene', {
@@ -301,13 +321,6 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     });
   }
 
-  // Driving sessions: offer trusted parking near the destination.
-  const chosenCandidate = candidates.find((c) => c.placeId === choice.placeId);
-  const parking =
-    session.transport === 'car' && chosenCandidate !== undefined
-      ? await findParkingNear({ lat: chosenCandidate.lat, lng: chosenCandidate.lng })
-      : null;
-
   const row = await insertNextScene({
     sessionId,
     draft: choice.draft,
@@ -315,6 +328,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     distanceM: choice.distanceM,
     generatedBy: choice.generatedBy,
     parking,
+    route,
   });
   return toSceneView(row);
 }

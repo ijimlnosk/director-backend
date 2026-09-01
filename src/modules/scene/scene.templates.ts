@@ -1,3 +1,4 @@
+import { formatDistance } from '../../shared/geo/distance.js';
 import {
   MIN_STEP_M,
   MIN_TIME_LIMIT_MIN,
@@ -9,6 +10,7 @@ import {
   type GeneratedSceneType,
   type Transport,
 } from './scene.constants.js';
+import type { RouteView } from './scene.schema.js';
 
 /**
  * How far the next place may be: what the transport covers in a fraction of the
@@ -47,6 +49,29 @@ export function estimateTimeLimitMin(
     MIN_TIME_LIMIT_MIN,
     Math.ceil(travel) + TIME_LIMIT_BUFFER_MIN + SCENE_TYPE_EXTRA_MIN[sceneType],
   );
+}
+
+/** Time limit from a trusted route's real duration instead of a speed estimate. */
+export function timeLimitFromDurationSec(
+  durationSec: number,
+  sceneType: GeneratedSceneType = 'move',
+): number {
+  return Math.max(
+    MIN_TIME_LIMIT_MIN,
+    Math.ceil(durationSec / 60) + TIME_LIMIT_BUFFER_MIN + SCENE_TYPE_EXTRA_MIN[sceneType],
+  );
+}
+
+/** Driver-facing hint composed only from trusted route data (no invented roads). */
+export function routeHint(route: RouteView): string {
+  const parts = [`약 ${formatDistance(route.distanceM)}, 차로 ${Math.round(route.durationSec / 60)}분`];
+  if (route.mainRoads.length > 0) parts.push(`${route.mainRoads.join(' → ')} 경유`);
+  if (route.firstStep?.roadName) {
+    parts.push(`${route.firstStep.roadName}에서 ${route.firstStep.instruction}`);
+  } else if (route.firstStep) {
+    parts.push(route.firstStep.instruction);
+  }
+  return `${parts.join('. ')}.`;
 }
 
 interface CopyArgs {

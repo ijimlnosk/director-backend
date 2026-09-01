@@ -85,6 +85,21 @@ export const parkingSpot = z.object({
 
 export type ParkingSpot = z.infer<typeof parkingSpot>;
 
+export const routeView = z.object({
+  distanceM: z.number().int(),
+  durationSec: z.number().int(),
+  mainRoads: z.array(z.string()),
+  firstStep: z
+    .object({
+      instruction: z.string(),
+      roadName: z.string().nullable(),
+      distanceM: z.number().int(),
+    })
+    .nullable(),
+});
+
+export type RouteView = z.infer<typeof routeView>;
+
 export const sceneView = z.object({
   id: z.uuid(),
   sessionId: z.uuid(),
@@ -100,6 +115,8 @@ export const sceneView = z.object({
   target: z.object({ lat: z.number(), lng: z.number() }),
   /** Nearby parking for driving sessions; null otherwise. */
   parking: z.array(parkingSpot).nullable(),
+  /** Trusted driving route to the target for driving sessions; null otherwise. */
+  route: routeView.nullable(),
   createdAt: z.string(),
   /** Server-authoritative deadline: createdAt + timeLimitMin. */
   expiresAt: z.string(),
@@ -124,6 +141,7 @@ export interface SceneRow {
   targetLat: number;
   targetLng: number;
   parking: ParkingSpot[] | null;
+  route: RouteView | null;
   createdAt: Date;
 }
 
@@ -169,6 +187,7 @@ export function toSceneView(row: SceneRow): SceneView {
     revealNameAfterArrival: row.revealNameAfterArrival,
     target: { lat: row.targetLat, lng: row.targetLng },
     parking: row.parking ?? null,
+    route: row.route ?? null,
     createdAt: row.createdAt.toISOString(),
     expiresAt: new Date(row.createdAt.getTime() + row.timeLimitMin * 60_000).toISOString(),
   };

@@ -137,6 +137,7 @@ export const scenes = pgTable('scene', {
   timeLimitMin: integer('time_limit_min').notNull(),
   extendedMin: integer('extended_min').notNull().default(0),
   parking: jsonb('parking'),
+  route: jsonb('route'),
   revealNameAfterArrival: boolean('reveal_name_after_arrival').notNull().default(true),
   generatedBy: generatedByEnum('generated_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

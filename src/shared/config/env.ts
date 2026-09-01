@@ -29,6 +29,9 @@ const envSchema = z.object({
   WEATHER_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
   KAKAO_REST_API_KEY: optionalString,
   PLACES_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
+  /** Kakao Mobility key for Directions; falls back to KAKAO_REST_API_KEY. */
+  KAKAO_MOBILITY_API_KEY: optionalString,
+  DIRECTIONS_TIMEOUT_MS: z.coerce.number().int().positive().max(30_000).default(5000),
   ADMIN_TOKEN: optionalString,
   MEDIA_DIR: z.string().min(1).default('media'),
   MEDIA_BASE_URL: z.url().default('http://localhost:3000/media'),
