@@ -1,8 +1,19 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
 import { cuts, sessions } from '../../shared/database/schema.js';
 import type { CutRow, CutSceneRow } from './cut.schema.js';
+
+const CUT_COLUMNS = {
+  sessionId: cuts.sessionId,
+  title: cuts.title,
+  summaryLine: cuts.summaryLine,
+  totalDistanceM: cuts.totalDistanceM,
+  runtimeSec: cuts.runtimeSec,
+  coverPhotoId: cuts.coverPhotoId,
+  visibility: cuts.visibility,
+  shareSlug: cuts.shareSlug,
+} as const;
 
 export interface SessionForEnd {
   id: string;
@@ -81,20 +92,41 @@ export async function coverPhoto(
 }
 
 export async function findCutRow(sessionId: string): Promise<CutRow | undefined> {
-  const rows = await db
-    .select({
-      sessionId: cuts.sessionId,
-      title: cuts.title,
-      summaryLine: cuts.summaryLine,
-      totalDistanceM: cuts.totalDistanceM,
-      runtimeSec: cuts.runtimeSec,
-      coverPhotoId: cuts.coverPhotoId,
-      visibility: cuts.visibility,
-    })
+  const [row] = await db.select(CUT_COLUMNS).from(cuts).where(eq(cuts.sessionId, sessionId)).limit(1);
+  return row;
+}
+
+/** A shared cut by its slug, only while its visibility is 'link'. */
+export async function findSharedCut(slug: string): Promise<CutRow | undefined> {
+  const [row] = await db
+    .select(CUT_COLUMNS)
     .from(cuts)
-    .where(eq(cuts.sessionId, sessionId))
+    .where(and(eq(cuts.shareSlug, slug), eq(cuts.visibility, 'link')))
     .limit(1);
-  return rows[0];
+  return row;
+}
+
+/** Assign a share slug (once) and make the cut link-visible. */
+export async function shareCutRow(sessionId: string, slug: string): Promise<CutRow | undefined> {
+  await db
+    .update(cuts)
+    .set({ shareSlug: slug })
+    .where(and(eq(cuts.sessionId, sessionId), isNull(cuts.shareSlug)));
+  const [row] = await db
+    .update(cuts)
+    .set({ visibility: 'link' })
+    .where(eq(cuts.sessionId, sessionId))
+    .returning(CUT_COLUMNS);
+  return row;
+}
+
+export async function unshareCutRow(sessionId: string): Promise<CutRow | undefined> {
+  const [row] = await db
+    .update(cuts)
+    .set({ visibility: 'private' })
+    .where(eq(cuts.sessionId, sessionId))
+    .returning(CUT_COLUMNS);
+  return row;
 }
 
 /** Mark an active session completed and insert its Cut, in one transaction. */
@@ -124,18 +156,7 @@ export async function endSessionAndInsertCut(args: {
       })
       .onConflictDoNothing({ target: cuts.sessionId });
 
-    const [row] = await tx
-      .select({
-        sessionId: cuts.sessionId,
-        title: cuts.title,
-        summaryLine: cuts.summaryLine,
-        totalDistanceM: cuts.totalDistanceM,
-        runtimeSec: cuts.runtimeSec,
-        coverPhotoId: cuts.coverPhotoId,
-        visibility: cuts.visibility,
-      })
-      .from(cuts)
-      .where(eq(cuts.sessionId, args.sessionId));
+    const [row] = await tx.select(CUT_COLUMNS).from(cuts).where(eq(cuts.sessionId, args.sessionId));
     return row!;
   });
 }

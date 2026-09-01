@@ -1,8 +1,20 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import { cutParams, cutResponse } from './cut.schema.js';
-import { endSession, getCut } from './cut.service.js';
+import {
+  cutParams,
+  cutResponse,
+  shareResponse,
+  slugParams,
+  unshareResponse,
+} from './cut.schema.js';
+import {
+  endSession,
+  getCut,
+  getSharedCut,
+  shareCut,
+  unshareCut,
+} from './cut.service.js';
 
 export async function cutRoutes(fastify: FastifyInstance): Promise<void> {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -37,9 +49,49 @@ export async function cutRoutes(fastify: FastifyInstance): Promise<void> {
       },
       onRequest: app.authenticate,
     },
-    async (request) => {
-      const cut = await getCut(request.user.sub, request.params.sessionId);
-      return { cut };
+    async (request) => ({ cut: await getCut(request.user.sub, request.params.sessionId) }),
+  );
+
+  app.post(
+    '/sessions/:sessionId/cut/share',
+    {
+      schema: {
+        tags: ['cut'],
+        summary: 'Make the Cut shareable via a link',
+        security: [{ bearerAuth: [] }],
+        params: cutParams,
+        response: { 200: shareResponse },
+      },
+      onRequest: app.authenticate,
     },
+    async (request) => shareCut(request.user.sub, request.params.sessionId),
+  );
+
+  app.delete(
+    '/sessions/:sessionId/cut/share',
+    {
+      schema: {
+        tags: ['cut'],
+        summary: 'Revoke link sharing for the Cut',
+        security: [{ bearerAuth: [] }],
+        params: cutParams,
+        response: { 200: unshareResponse },
+      },
+      onRequest: app.authenticate,
+    },
+    async (request) => unshareCut(request.user.sub, request.params.sessionId),
+  );
+
+  app.get(
+    '/cuts/:slug',
+    {
+      schema: {
+        tags: ['cut'],
+        summary: 'Public read of a shared Cut',
+        params: slugParams,
+        response: { 200: cutResponse },
+      },
+    },
+    async (request) => ({ cut: await getSharedCut(request.params.slug) }),
   );
 }

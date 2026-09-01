@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { GET_URL_TTL_SEC, storage } from '../../integrations/storage/index.js';
 import { conflict, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { buildCutCopy } from './cut.templates.js';
@@ -5,11 +7,16 @@ import {
   coverPhoto,
   endSessionAndInsertCut,
   findCutRow,
+  findSharedCut,
   loadSessionForEnd,
   sessionSceneBreakdown,
   sessionTotals,
+  shareCutRow,
+  unshareCutRow,
 } from './cut.repository.js';
 import { toCutView, type CutRow, type CutView } from './cut.schema.js';
+
+const newSlug = (): string => randomBytes(9).toString('base64url');
 
 async function assembleCutView(sessionId: string, cut: CutRow): Promise<CutView> {
   const [scenes, cover] = await Promise.all([
@@ -64,8 +71,7 @@ export async function endSession(userId: string, sessionId: string): Promise<Cut
   return assembleCutView(sessionId, cut);
 }
 
-/** Read an existing Cut; the caller must be the session host. */
-export async function getCut(userId: string, sessionId: string): Promise<CutView> {
+async function ownedCut(userId: string, sessionId: string): Promise<CutRow> {
   const session = await loadSessionForEnd(sessionId);
   if (session === undefined) {
     throw notFound('session');
@@ -77,5 +83,42 @@ export async function getCut(userId: string, sessionId: string): Promise<CutView
   if (cut === undefined) {
     throw notFound('cut');
   }
-  return assembleCutView(sessionId, cut);
+  return cut;
+}
+
+/** Read an existing Cut; the caller must be the session host. */
+export async function getCut(userId: string, sessionId: string): Promise<CutView> {
+  return assembleCutView(sessionId, await ownedCut(userId, sessionId));
+}
+
+/** Make the Cut link-visible, assigning a share slug on first share. */
+export async function shareCut(
+  userId: string,
+  sessionId: string,
+): Promise<{ shareSlug: string; visibility: 'private' | 'link' }> {
+  const cut = await ownedCut(userId, sessionId);
+  const updated = await shareCutRow(sessionId, cut.shareSlug ?? newSlug());
+  if (updated === undefined || updated.shareSlug === null) {
+    throw conflict('Cut could not be shared');
+  }
+  return { shareSlug: updated.shareSlug, visibility: updated.visibility };
+}
+
+/** Revoke link visibility. The slug is kept so re-sharing yields the same link. */
+export async function unshareCut(
+  userId: string,
+  sessionId: string,
+): Promise<{ shareSlug: string | null; visibility: 'private' | 'link' }> {
+  await ownedCut(userId, sessionId);
+  const updated = await unshareCutRow(sessionId);
+  return { shareSlug: updated?.shareSlug ?? null, visibility: updated?.visibility ?? 'private' };
+}
+
+/** Public read of a shared Cut by slug. No auth. */
+export async function getSharedCut(slug: string): Promise<CutView> {
+  const cut = await findSharedCut(slug);
+  if (cut === undefined) {
+    throw notFound('cut');
+  }
+  return assembleCutView(cut.sessionId, cut);
 }

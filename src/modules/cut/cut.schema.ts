@@ -20,12 +20,25 @@ export const cutView = z.object({
   coverPhotoId: z.uuid().nullable(),
   coverPhotoUrl: z.url().nullable(),
   visibility: z.enum(['private', 'link']),
+  shareSlug: z.string().nullable(),
   scenes: z.array(cutSceneLine),
 });
 
 export type CutView = z.infer<typeof cutView>;
 
 export const cutResponse = z.object({ cut: cutView });
+
+export const slugParams = z.object({ slug: z.string().min(8).max(64) });
+
+export const shareResponse = z.object({
+  shareSlug: z.string(),
+  visibility: z.enum(['private', 'link']),
+});
+
+export const unshareResponse = z.object({
+  shareSlug: z.string().nullable(),
+  visibility: z.enum(['private', 'link']),
+});
 
 export interface CutRow {
   sessionId: string;
@@ -35,6 +48,7 @@ export interface CutRow {
   runtimeSec: number;
   coverPhotoId: string | null;
   visibility: 'private' | 'link';
+  shareSlug: string | null;
 }
 
 export interface CutSceneRow {
