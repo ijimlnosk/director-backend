@@ -28,7 +28,7 @@ export const sessionStatusEnum = pgEnum('session_status', [
 export const sceneTypeEnum = pgEnum('scene_type', ['move', 'choose', 'photo', 'observe', 'split']);
 export const generatedByEnum = pgEnum('generated_by', ['template', 'llm']);
 export const sceneOutcomeEnum = pgEnum('scene_outcome', [
-  'arrived', 'skipped', 'timeout', 'vetoed',
+  'arrived', 'skipped', 'timeout', 'vetoed', 'aborted',
 ]);
 export const verificationMethodEnum = pgEnum('verification_method', ['gps', 'manual']);
 export const participantRoleEnum = pgEnum('participant_role', ['host', 'member']);
@@ -135,6 +135,7 @@ export const scenes = pgTable('scene', {
   placeId: uuid('place_id').references(() => places.id),
   distanceM: integer('distance_m').notNull(),
   timeLimitMin: integer('time_limit_min').notNull(),
+  extendedMin: integer('extended_min').notNull().default(0),
   revealNameAfterArrival: boolean('reveal_name_after_arrival').notNull().default(true),
   generatedBy: generatedByEnum('generated_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

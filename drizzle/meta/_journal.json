@@ -78,6 +78,13 @@
       "when": 1788258543016,
       "tag": "0010_session_purpose",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788270543314,
+      "tag": "0011_scene_extend_abort",
+      "breakpoints": true
     }
   ]
 }

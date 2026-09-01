@@ -2,8 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import {
+  abortSceneBody,
   completeSceneBody,
   currentSceneResponse,
+  extendSceneBody,
   nextSceneParams,
   sceneIdParams,
   sceneListResponse,
@@ -14,7 +16,13 @@ import {
   vetoSceneBody,
 } from './scene.schema.js';
 import { generateNextScene, getCurrentScene, listSessionScenes } from './scene.service.js';
-import { completeScene, skipScene, vetoScene } from './scene.resolve.service.js';
+import {
+  abortScene,
+  completeScene,
+  extendScene,
+  skipScene,
+  vetoScene,
+} from './scene.resolve.service.js';
 
 export async function sceneRoutes(fastify: FastifyInstance): Promise<void> {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -124,6 +132,43 @@ export async function sceneRoutes(fastify: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const result = await vetoScene(request.user.sub, request.params.sceneId, request.body);
+      return reply.code(201).send({ result });
+    },
+  );
+
+  app.post(
+    '/scenes/:sceneId/extend',
+    {
+      schema: {
+        tags: ['scene'],
+        summary: 'Add time to a live scene (server owns the deadline)',
+        security: [{ bearerAuth: [] }],
+        params: sceneIdParams,
+        body: extendSceneBody,
+        response: { 200: sceneResponse },
+      },
+      onRequest: app.authenticate,
+    },
+    async (request) => ({
+      scene: await extendScene(request.user.sub, request.params.sceneId, request.body),
+    }),
+  );
+
+  app.post(
+    '/scenes/:sceneId/abort',
+    {
+      schema: {
+        tags: ['scene'],
+        summary: 'Abort a live scene (recorded as aborted, not completed)',
+        security: [{ bearerAuth: [] }],
+        params: sceneIdParams,
+        body: abortSceneBody,
+        response: { 201: sceneResultResponse },
+      },
+      onRequest: app.authenticate,
+    },
+    async (request, reply) => {
+      const result = await abortScene(request.user.sub, request.params.sceneId, request.body);
       return reply.code(201).send({ result });
     },
   );

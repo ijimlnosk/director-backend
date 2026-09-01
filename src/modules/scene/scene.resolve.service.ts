@@ -6,6 +6,7 @@ import {
   validationFailed,
 } from '../../shared/errors/app-error.js';
 import { haversineM } from '../../shared/geo/distance.js';
+import { extendSceneRow } from './scene.repository.js';
 import { ARRIVAL_GEOFENCE_M } from './scene.constants.js';
 import {
   insertSceneResult,
@@ -16,8 +17,12 @@ import {
 } from './scene.resolve.repository.js';
 import {
   toSceneResultView,
+  toSceneView,
+  type AbortSceneInput,
   type CompleteSceneInput,
+  type ExtendSceneInput,
   type SceneResultView,
+  type SceneView,
   type SkipSceneInput,
   type VetoSceneInput,
 } from './scene.schema.js';
@@ -130,6 +135,41 @@ export async function vetoScene(
     outcome: 'vetoed',
     verifiedBy: 'manual',
     skipReason: null,
+    elapsedSec: 0,
+    walkedM: 0,
+  });
+  return toSceneResultView(row);
+}
+
+/** Add time to a live scene. The server stays the source of truth for the
+ *  deadline (createdAt + timeLimitMin); the extra minutes are also recorded. */
+export async function extendScene(
+  userId: string,
+  sceneId: string,
+  body: ExtendSceneInput,
+): Promise<SceneView> {
+  await loadResolvable(userId, sceneId);
+  const row = await extendSceneRow(sceneId, body.extraMin);
+  if (row === undefined) {
+    throw notFound('scene');
+  }
+  return toSceneView(row);
+}
+
+/** Abort a live scene. Recorded as `aborted` - never treated as completed. */
+export async function abortScene(
+  userId: string,
+  sceneId: string,
+  body: AbortSceneInput,
+): Promise<SceneResultView> {
+  await loadResolvable(userId, sceneId);
+  const row = await insertSceneResult({
+    sceneId,
+    userId,
+    placeId: null,
+    outcome: 'aborted',
+    verifiedBy: 'manual',
+    skipReason: body.reason ?? null,
     elapsedSec: 0,
     walkedM: 0,
   });

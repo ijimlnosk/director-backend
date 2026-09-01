@@ -6,7 +6,7 @@ export const cutSceneLine = z.object({
   seq: z.number().int(),
   type: z.enum(['move', 'choose', 'photo', 'observe', 'split']),
   title: z.string(),
-  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed']).nullable(),
+  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed', 'aborted']).nullable(),
   placeName: z.string().nullable(),
   distanceM: z.number().int(),
 });
@@ -55,7 +55,7 @@ export interface CutSceneRow {
   seq: number;
   type: CutView['scenes'][number]['type'];
   title: string;
-  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | null;
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | 'aborted' | null;
   placeName: string | null;
   distanceM: number;
 }

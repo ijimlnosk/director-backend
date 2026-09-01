@@ -39,7 +39,7 @@ export type VetoSceneInput = z.infer<typeof vetoSceneBody>;
 export const sceneResultView = z.object({
   id: z.uuid(),
   sceneId: z.uuid(),
-  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed']),
+  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed', 'aborted']),
   verifiedBy: z.enum(['gps', 'manual']),
   skipReason: z.string().nullable(),
   elapsedSec: z.number().int(),
@@ -54,7 +54,7 @@ export const sceneResultResponse = z.object({ result: sceneResultView });
 export interface SceneResultRow {
   id: string;
   sceneId: string;
-  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed';
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | 'aborted';
   verifiedBy: 'gps' | 'manual';
   skipReason: string | null;
   elapsedSec: number;
@@ -85,9 +85,12 @@ export const sceneView = z.object({
   hint: z.string(),
   distanceM: z.number().int(),
   timeLimitMin: z.number().int(),
+  extendedMin: z.number().int(),
   revealNameAfterArrival: z.boolean(),
   target: z.object({ lat: z.number(), lng: z.number() }),
   createdAt: z.string(),
+  /** Server-authoritative deadline: createdAt + timeLimitMin. */
+  expiresAt: z.string(),
 });
 
 export type SceneView = z.infer<typeof sceneView>;
@@ -104,6 +107,7 @@ export interface SceneRow {
   hint: string;
   distanceM: number;
   timeLimitMin: number;
+  extendedMin: number;
   revealNameAfterArrival: boolean;
   targetLat: number;
   targetLng: number;
@@ -111,7 +115,7 @@ export interface SceneRow {
 }
 
 export const sceneListItem = sceneView.extend({
-  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed']).nullable(),
+  outcome: z.enum(['arrived', 'skipped', 'timeout', 'vetoed', 'aborted']).nullable(),
   resolvedAt: z.string().nullable(),
 });
 
@@ -122,7 +126,7 @@ export const sceneListResponse = z.object({ scenes: z.array(sceneListItem) });
 export const currentSceneResponse = z.object({ scene: sceneView.nullable() });
 
 export interface SceneListRow extends SceneRow {
-  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | null;
+  outcome: 'arrived' | 'skipped' | 'timeout' | 'vetoed' | 'aborted' | null;
   resolvedAt: Date | null;
 }
 
@@ -145,8 +149,22 @@ export function toSceneView(row: SceneRow): SceneView {
     hint: row.hint,
     distanceM: row.distanceM,
     timeLimitMin: row.timeLimitMin,
+    extendedMin: row.extendedMin,
     revealNameAfterArrival: row.revealNameAfterArrival,
     target: { lat: row.targetLat, lng: row.targetLng },
     createdAt: row.createdAt.toISOString(),
+    expiresAt: new Date(row.createdAt.getTime() + row.timeLimitMin * 60_000).toISOString(),
   };
 }
+
+export const extendSceneBody = z.object({
+  extraMin: z.number().int().min(5).max(60),
+});
+
+export type ExtendSceneInput = z.infer<typeof extendSceneBody>;
+
+export const abortSceneBody = z.object({
+  reason: z.string().min(1).max(300).optional(),
+});
+
+export type AbortSceneInput = z.infer<typeof abortSceneBody>;

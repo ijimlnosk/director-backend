@@ -67,7 +67,7 @@ export async function insertSceneResult(args: {
   sceneId: string;
   userId: string;
   placeId: string | null;
-  outcome: 'arrived' | 'skipped' | 'vetoed';
+  outcome: 'arrived' | 'skipped' | 'vetoed' | 'aborted';
   verifiedBy: 'gps' | 'manual';
   arrivedPoint?: { lat: number; lng: number };
   skipReason: string | null;

@@ -23,6 +23,7 @@ const SCENE_ROW_SQL = sql`
   ${scenes.hint} as "hint",
   ${scenes.distanceM} as "distanceM",
   ${scenes.timeLimitMin} as "timeLimitMin",
+  ${scenes.extendedMin} as "extendedMin",
   ${scenes.revealNameAfterArrival} as "revealNameAfterArrival",
   ${scenes.createdAt} as "createdAt",
   ST_Y(${places.point}::geometry) as "targetLat",
@@ -42,6 +43,28 @@ export async function listSceneRows(sessionId: string): Promise<SceneListRow[]> 
     order by ${scenes.seq}
   `);
   return rows as unknown as SceneListRow[];
+}
+
+/** Add `extraMin` to a scene's time limit (and its extended tally). */
+export async function extendSceneRow(
+  sceneId: string,
+  extraMin: number,
+): Promise<SceneRow | undefined> {
+  await db
+    .update(scenes)
+    .set({
+      timeLimitMin: sql`${scenes.timeLimitMin} + ${extraMin}`,
+      extendedMin: sql`${scenes.extendedMin} + ${extraMin}`,
+    })
+    .where(eq(scenes.id, sceneId));
+  const rows = await db.execute(sql`
+    select ${SCENE_ROW_SQL}
+    from ${scenes}
+    left join ${places} on ${places.id} = ${scenes.placeId}
+    where ${scenes.id} = ${sceneId}
+    limit 1
+  `);
+  return (rows as unknown as SceneRow[])[0];
 }
 
 /** The latest scene with no result yet, i.e. the one to resume. */
@@ -313,6 +336,7 @@ export async function insertNextScene(args: {
         hint: scenes.hint,
         distanceM: scenes.distanceM,
         timeLimitMin: scenes.timeLimitMin,
+        extendedMin: scenes.extendedMin,
         revealNameAfterArrival: scenes.revealNameAfterArrival,
         createdAt: scenes.createdAt,
       });
