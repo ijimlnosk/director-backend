@@ -48,6 +48,7 @@ async function chooseScene(
   try {
     const decision = await aiDirector.decide({
       mode: session.mode,
+      mood: session.mood,
       transport: session.transport,
       remainingMin,
       priorSceneCount,

@@ -12,6 +12,7 @@ const ROW_SELECT = {
   id: sessions.id,
   hostUserId: sessions.hostUserId,
   mode: sessions.mode,
+  mood: sessions.mood,
   status: sessions.status,
   durationMin: sessions.durationMin,
   budgetKrw: sessions.budgetKrw,
@@ -38,6 +39,7 @@ export async function insertDraftSession(
     .values({
       hostUserId,
       mode: input.mode,
+      mood: input.mood ?? null,
       durationMin: input.durationMin,
       budgetKrw: input.budgetKrw ?? null,
       transport: input.transport,

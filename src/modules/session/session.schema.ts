@@ -4,6 +4,7 @@ import { weatherSnapshotSchema } from '../../integrations/weather/weather.types.
 
 export const createSessionBody = z.object({
   mode: z.enum(['solo', 'date', 'friends']),
+  mood: z.enum(['chill', 'adventurous']).optional(),
   durationMin: z.number().int().min(15).max(480),
   budgetKrw: z.number().int().min(0).max(10_000_000).optional(),
   transport: z.enum(['walk', 'transit', 'car']),
@@ -21,6 +22,7 @@ export const sessionParams = z.object({ sessionId: z.uuid() });
 export const sessionView = z.object({
   id: z.uuid(),
   mode: z.enum(['solo', 'date', 'friends']),
+  mood: z.enum(['chill', 'adventurous']).nullable(),
   status: z.enum(['draft', 'checking', 'active', 'completed', 'abandoned', 'archived']),
   durationMin: z.number().int(),
   budgetKrw: z.number().int().nullable(),
@@ -40,6 +42,7 @@ export interface SessionRow {
   id: string;
   hostUserId: string;
   mode: SessionView['mode'];
+  mood: SessionView['mood'];
   status: SessionView['status'];
   durationMin: number;
   budgetKrw: number | null;
@@ -57,6 +60,7 @@ export function toSessionView(row: SessionRow): SessionView {
   return {
     id: row.id,
     mode: row.mode,
+    mood: row.mood,
     status: row.status,
     durationMin: row.durationMin,
     budgetKrw: row.budgetKrw,

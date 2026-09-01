@@ -8,6 +8,7 @@ export interface DirectorCandidate {
 
 export interface DirectorRequest {
   mode: 'solo' | 'date' | 'friends';
+  mood: 'chill' | 'adventurous' | null;
   transport: 'walk' | 'transit' | 'car';
   remainingMin: number;
   priorSceneCount: number;

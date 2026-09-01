@@ -43,6 +43,13 @@
       "when": 1788233544707,
       "tag": "0005_place_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788236096368,
+      "tag": "0006_session_mood",
+      "breakpoints": true
     }
   ]
 }

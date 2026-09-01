@@ -17,6 +17,7 @@ const geography = customType<{
 export const subscriptionEnum = pgEnum('subscription', ['free', 'plus']);
 export const locationPermissionEnum = pgEnum('location_permission', ['granted', 'denied']);
 export const sessionModeEnum = pgEnum('session_mode', ['solo', 'date', 'friends']);
+export const sessionMoodEnum = pgEnum('session_mood', ['chill', 'adventurous']);
 export const transportEnum = pgEnum('transport', ['walk', 'transit', 'car']);
 export const sessionStatusEnum = pgEnum('session_status', [
   'draft', 'checking', 'active', 'completed', 'abandoned', 'archived',
@@ -86,6 +87,7 @@ export const sessions = pgTable('session', {
   id: uuid('id').defaultRandom().primaryKey(),
   hostUserId: uuid('host_user_id').notNull().references(() => users.id),
   mode: sessionModeEnum('mode').notNull(),
+  mood: sessionMoodEnum('mood'),
   durationMin: integer('duration_min').notNull(),
   budgetKrw: integer('budget_krw'),
   transport: transportEnum('transport').notNull(),

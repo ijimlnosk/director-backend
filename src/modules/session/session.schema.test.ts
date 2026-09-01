@@ -7,6 +7,7 @@ const baseRow: SessionRow = {
   id: '11111111-1111-4111-8111-111111111111',
   hostUserId: '22222222-2222-4222-8222-222222222222',
   mode: 'solo',
+  mood: null,
   status: 'draft',
   durationMin: 90,
   budgetKrw: null,
@@ -85,4 +86,17 @@ test('createSessionBody accepts a valid draft payload', () => {
     areaId: '33333333-3333-4333-8333-333333333333',
   });
   assert.equal(result.success, true);
+});
+
+test('createSessionBody accepts an optional mood and rejects an unknown one', () => {
+  const base = {
+    mode: 'date' as const,
+    durationMin: 90,
+    transport: 'walk' as const,
+    origin: { lat: 37.5, lng: 127 },
+    areaId: '33333333-3333-4333-8333-333333333333',
+  };
+  assert.equal(createSessionBody.safeParse({ ...base, mood: 'adventurous' }).success, true);
+  assert.equal(createSessionBody.safeParse(base).success, true);
+  assert.equal(createSessionBody.safeParse({ ...base, mood: 'wild' }).success, false);
 });

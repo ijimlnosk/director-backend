@@ -12,6 +12,7 @@ export interface SessionContext {
   hostUserId: string;
   status: string;
   mode: 'solo' | 'date' | 'friends';
+  mood: 'chill' | 'adventurous' | null;
   transport: Transport;
   areaId: string;
   durationMin: number;
@@ -36,6 +37,7 @@ export async function loadSessionContext(sessionId: string): Promise<SessionCont
            ${sessions.hostUserId} as "hostUserId",
            ${sessions.status} as "status",
            ${sessions.mode} as "mode",
+           ${sessions.mood} as "mood",
            ${sessions.transport} as "transport",
            ${sessions.areaId} as "areaId",
            ${sessions.durationMin} as "durationMin",
