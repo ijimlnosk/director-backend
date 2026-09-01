@@ -1,18 +1,90 @@
+import { aiDirector } from '../../integrations/ai/index.js';
 import { conflict, constraintFailed, forbidden, notFound } from '../../shared/errors/app-error.js';
 import { SEARCH_RADIUS_M } from './scene.constants.js';
 import {
-  findNearestCandidate,
   insertNextScene,
+  listCandidates,
   loadSessionContext,
   priorScenes,
   unresolvedSceneSeq,
+  type Candidate,
+  type SessionContext,
 } from './scene.repository.js';
-import { buildMoveScene } from './scene.templates.js';
+import { buildMoveScene, estimateTimeLimitMin, type MoveSceneDraft } from './scene.templates.js';
 import { toSceneView, type SceneView } from './scene.schema.js';
 
 const SCENE_GENERATABLE_STATUS = new Set(['draft', 'active']);
 
-/** Deterministic (no-AI) generation of the next MOVE scene for a session. */
+interface SceneChoice {
+  placeId: string;
+  distanceM: number;
+  generatedBy: 'template' | 'llm';
+  draft: MoveSceneDraft;
+}
+
+/** Deterministic pick from the nearest candidate. */
+function deterministicChoice(nearest: Candidate, transport: SessionContext['transport']): SceneChoice {
+  const distanceM = Math.round(nearest.distanceM);
+  return {
+    placeId: nearest.placeId,
+    distanceM,
+    generatedBy: 'template',
+    draft: buildMoveScene({ category: nearest.category, distanceM, transport }),
+  };
+}
+
+/** Ask the AI Director to choose; fall back to deterministic on any failure. */
+async function chooseScene(
+  session: SessionContext,
+  remainingMin: number,
+  priorSceneCount: number,
+  candidates: Candidate[],
+): Promise<SceneChoice> {
+  const nearest = candidates[0]!;
+  if (!aiDirector.enabled) {
+    return deterministicChoice(nearest, session.transport);
+  }
+
+  try {
+    const decision = await aiDirector.decide({
+      mode: session.mode,
+      transport: session.transport,
+      remainingMin,
+      priorSceneCount,
+      candidates: candidates.map((c) => ({
+        placeId: c.placeId,
+        category: c.category,
+        distanceM: Math.round(c.distanceM),
+      })),
+    });
+
+    const chosen = candidates.find((c) => c.placeId === decision.placeId);
+    if (chosen === undefined) {
+      throw new Error(`AI returned a placeId not in the candidate set: ${decision.placeId}`);
+    }
+
+    const distanceM = Math.round(chosen.distanceM);
+    return {
+      placeId: chosen.placeId,
+      distanceM,
+      generatedBy: 'llm',
+      draft: {
+        type: 'move',
+        title: decision.title,
+        body: decision.body,
+        hint: decision.hint,
+        timeLimitMin: estimateTimeLimitMin(distanceM, session.transport),
+        revealNameAfterArrival: true,
+      },
+    };
+  } catch (error) {
+    // eslint-disable-next-line no-console -- no shared logger yet; visible in container logs
+    console.warn('[ai-director] falling back to deterministic pick:', error);
+    return deterministicChoice(nearest, session.transport);
+  }
+}
+
+/** Generate the next MOVE scene for a session (AI Director with deterministic fallback). */
 export async function generateNextScene(userId: string, sessionId: string): Promise<SceneView> {
   const session = await loadSessionContext(sessionId);
   if (session === undefined) {
@@ -36,7 +108,7 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     .filter((id): id is string => id !== null);
   const remainingMin = session.durationMin - prior.reduce((sum, s) => sum + s.timeLimitMin, 0);
 
-  const candidate = await findNearestCandidate({
+  const candidates = await listCandidates({
     areaId: session.areaId,
     originLat: session.originLat,
     originLng: session.originLng,
@@ -44,31 +116,27 @@ export async function generateNextScene(userId: string, sessionId: string): Prom
     excludePlaceIds: usedPlaceIds,
     userId,
   });
-  if (candidate === undefined) {
+  if (candidates.length === 0) {
     throw constraintFailed('No eligible place found for the next scene');
   }
 
-  const distanceM = Math.round(candidate.distanceM);
-  const draft = buildMoveScene({
-    category: candidate.category,
-    distanceM,
-    transport: session.transport,
-  });
+  const choice = await chooseScene(session, remainingMin, prior.length, candidates);
 
   // Final deterministic check: the scene must fit the remaining session time.
-  if (draft.timeLimitMin > remainingMin) {
+  if (choice.draft.timeLimitMin > remainingMin) {
     throw constraintFailed('Not enough session time remains for another scene', {
       remainingMin,
-      requiredMin: draft.timeLimitMin,
+      requiredMin: choice.draft.timeLimitMin,
     });
   }
 
   const row = await insertNextScene({
     sessionId,
     activateDraft: session.status === 'draft',
-    draft,
-    placeId: candidate.placeId,
-    distanceM,
+    draft: choice.draft,
+    placeId: choice.placeId,
+    distanceM: choice.distanceM,
+    generatedBy: choice.generatedBy,
   });
   return toSceneView(row);
 }

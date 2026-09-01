@@ -10,6 +10,7 @@ export interface SessionContext {
   id: string;
   hostUserId: string;
   status: string;
+  mode: 'solo' | 'date' | 'friends';
   transport: Transport;
   areaId: string;
   durationMin: number;
@@ -33,6 +34,7 @@ export async function loadSessionContext(sessionId: string): Promise<SessionCont
     select ${sessions.id} as "id",
            ${sessions.hostUserId} as "hostUserId",
            ${sessions.status} as "status",
+           ${sessions.mode} as "mode",
            ${sessions.transport} as "transport",
            ${sessions.areaId} as "areaId",
            ${sessions.durationMin} as "durationMin",
@@ -68,15 +70,18 @@ export async function unresolvedSceneSeq(sessionId: string): Promise<number | un
   return rows[0]?.seq;
 }
 
-/** Nearest trusted place within radius, excluding used and cooled-down places. */
-export async function findNearestCandidate(args: {
-  areaId: string;
-  originLat: number;
-  originLng: number;
-  radiusM: number;
-  excludePlaceIds: string[];
-  userId: string;
-}): Promise<Candidate | undefined> {
+/** Trusted places within radius, nearest first, excluding used and cooled-down places. */
+export async function listCandidates(
+  args: {
+    areaId: string;
+    originLat: number;
+    originLng: number;
+    radiusM: number;
+    excludePlaceIds: string[];
+    userId: string;
+  },
+  limit = 12,
+): Promise<Candidate[]> {
   const origin = geo(args.originLng, args.originLat);
   const exclude = args.excludePlaceIds.length
     ? sql`and not (${places.id} = any(${args.excludePlaceIds}::uuid[]))`
@@ -97,9 +102,9 @@ export async function findNearestCandidate(args: {
       and (v.place_id is null
            or v.last_visited_at < now() - make_interval(days => ${places.cooldownDays}))
     order by "distanceM" asc
-    limit 1
+    limit ${limit}
   `);
-  return (rows as unknown as Candidate[])[0];
+  return rows as unknown as Candidate[];
 }
 
 /** Insert the next scene, activating a draft session in the same transaction. */
@@ -109,6 +114,7 @@ export async function insertNextScene(args: {
   draft: MoveSceneDraft;
   placeId: string;
   distanceM: number;
+  generatedBy: 'template' | 'llm';
 }): Promise<SceneRow> {
   return db.transaction(async (tx) => {
     const [seqRow] = await tx
@@ -130,7 +136,7 @@ export async function insertNextScene(args: {
         distanceM: args.distanceM,
         timeLimitMin: args.draft.timeLimitMin,
         revealNameAfterArrival: args.draft.revealNameAfterArrival,
-        generatedBy: 'template',
+        generatedBy: args.generatedBy,
       })
       .returning({
         id: scenes.id,
