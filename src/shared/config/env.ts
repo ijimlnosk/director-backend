@@ -8,6 +8,7 @@ const envSchema = z.object({
   DATABASE_URL: z.url().startsWith('postgres'),
   JWT_SECRET: z.string().min(32),
   AI_API_KEY: z.string().min(1).optional(),
+  AI_WORKSPACE_ID: z.string().min(1).optional(),
   AI_MODEL: z.string().default('claude-opus-5'),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(8000),
 });

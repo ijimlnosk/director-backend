@@ -15,6 +15,7 @@ export const aiDirector: AiDirector = env.AI_API_KEY
       apiKey: env.AI_API_KEY,
       model: env.AI_MODEL,
       timeoutMs: env.AI_TIMEOUT_MS,
+      ...(env.AI_WORKSPACE_ID ? { workspaceId: env.AI_WORKSPACE_ID } : {}),
     })
   : disabledDirector;
 

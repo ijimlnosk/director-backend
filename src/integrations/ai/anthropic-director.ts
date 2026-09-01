@@ -43,10 +43,19 @@ export interface AnthropicDirectorOptions {
   apiKey: string;
   model: string;
   timeoutMs: number;
+  /** Required when AI_API_KEY is an identity-linked key. */
+  workspaceId?: string;
 }
 
 export function createAnthropicDirector(opts: AnthropicDirectorOptions): AiDirector {
-  const client = new Anthropic({ apiKey: opts.apiKey, timeout: opts.timeoutMs, maxRetries: 1 });
+  const client = new Anthropic({
+    apiKey: opts.apiKey,
+    timeout: opts.timeoutMs,
+    maxRetries: 1,
+    ...(opts.workspaceId
+      ? { defaultHeaders: { 'anthropic-workspace-id': opts.workspaceId } }
+      : {}),
+  });
 
   return {
     enabled: true,
