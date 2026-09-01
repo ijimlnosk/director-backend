@@ -2,7 +2,6 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../../shared/database/client.js';
 import { places, sceneResults, scenes, sessions } from '../../shared/database/schema.js';
-import { openHoursSchema, openStateAt, type OpenState } from '../../shared/opening-hours.js';
 import { excludePlaceIdsSql } from './scene.candidates.js';
 import type { Transport } from './scene.constants.js';
 import type { MoveSceneDraft } from './scene.templates.js';
@@ -27,12 +26,6 @@ export interface Candidate {
   distanceM: number;
   lat: number;
   lng: number;
-  openState: OpenState;
-}
-
-function openStateOf(raw: unknown): OpenState {
-  const parsed = openHoursSchema.safeParse(raw);
-  return parsed.success ? openStateAt(parsed.data, new Date()) : 'unknown';
 }
 
 const geo = (lng: number, lat: number) =>
@@ -149,12 +142,12 @@ export async function listCandidates(
           sql` and `,
         )}`;
 
+  // TODO: opening-hours filter once open_hours shape + session timezone are settled.
   const rows = await db.execute(sql`
-    select "placeId", "category", "distanceM", "lat", "lng", "openHours"
+    select "placeId", "category", "distanceM", "lat", "lng"
     from (
       select ${places.id} as "placeId",
              ${places.category} as "category",
-             ${places.openHours} as "openHours",
              ST_Distance(${places.point}, ${anchor}) as "distanceM",
              ST_Y(${places.point}::geometry) as "lat",
              ST_X(${places.point}::geometry) as "lng"
@@ -178,10 +171,7 @@ export async function listCandidates(
     order by random()
     limit ${limit}
   `);
-
-  return (
-    rows as unknown as (Omit<Candidate, 'openState'> & { openHours: unknown })[]
-  ).map(({ openHours, ...rest }) => ({ ...rest, openState: openStateOf(openHours) }));
+  return rows as unknown as Candidate[];
 }
 
 /** Insert the next scene for an active session. */

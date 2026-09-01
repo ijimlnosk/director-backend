@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { DEFAULT_CATEGORY_GROUPS } from '../../integrations/places/places.types.js';
-import { openHoursSchema } from '../../shared/opening-hours.js';
 
 export const areaView = z.object({
   id: z.uuid(),
@@ -40,15 +39,4 @@ export const ingestPlacesResponse = z.object({
   fetched: z.number().int(),
   inserted: z.number().int(),
   skipped: z.number().int(),
-});
-
-export const placeHoursParams = z.object({ areaId: z.uuid(), placeId: z.uuid() });
-
-export const setPlaceHoursBody = z.object({ openHours: openHoursSchema });
-
-export type SetPlaceHoursInput = z.infer<typeof setPlaceHoursBody>;
-
-export const placeHoursResponse = z.object({
-  placeId: z.uuid(),
-  openHours: openHoursSchema,
 });
