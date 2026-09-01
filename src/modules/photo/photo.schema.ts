@@ -27,6 +27,10 @@ export const completePhotoBody = z.preprocess(
 
 export type CompletePhotoInput = z.infer<typeof completePhotoBody>;
 
+export const updatePhotoBody = z.object({ includeInCredits: z.boolean() });
+
+export type UpdatePhotoInput = z.infer<typeof updatePhotoBody>;
+
 export const photoView = z.object({
   id: z.uuid(),
   url: z.url(),

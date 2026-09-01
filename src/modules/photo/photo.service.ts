@@ -10,10 +10,12 @@ import {
 import { checkUploadedObject, photoObjectKey } from './photo.keys.js';
 import {
   findPhotoById,
-  findPhotoBySceneResult,
+  findPhotoForScene,
   loadSceneResultForPhoto,
   markPhotoReady,
+  setIncludeInCredits,
   upsertPendingPhoto,
+  type PhotoFull,
 } from './photo.repository.js';
 import { toPhotoView, type CompletePhotoInput, type PhotoView } from './photo.schema.js';
 
@@ -40,7 +42,7 @@ export async function createUploadUrl(
   if (result.outcome !== 'arrived') {
     throw conflict(`Scene result is "${result.outcome}"; a photo needs an arrival`);
   }
-  const existing = await findPhotoBySceneResult(result.sceneResultId);
+  const existing = await findPhotoForScene(sceneId);
   if (existing?.status === 'ready') {
     throw conflict('This scene already has a photo');
   }
@@ -90,5 +92,41 @@ export async function completePhoto(
     width: body.width ?? null,
     height: body.height ?? null,
   });
+  return toPhotoView(row, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
+}
+
+async function readablePhoto(userId: string, photo: PhotoFull | undefined): Promise<PhotoView> {
+  if (photo === undefined || photo.status !== 'ready') {
+    throw notFound('photo');
+  }
+  if (photo.hostUserId !== userId) {
+    throw forbidden('You do not have access to this photo');
+  }
+  return toPhotoView(photo, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
+}
+
+/** Fresh signed URL + metadata for a scene's photo. */
+export async function getScenePhoto(userId: string, sceneId: string): Promise<PhotoView> {
+  return readablePhoto(userId, await findPhotoForScene(sceneId));
+}
+
+export async function getPhoto(userId: string, photoId: string): Promise<PhotoView> {
+  return readablePhoto(userId, await findPhotoById(photoId));
+}
+
+/** Toggle whether a photo appears in the End Credits. */
+export async function updatePhotoInclusion(
+  userId: string,
+  photoId: string,
+  includeInCredits: boolean,
+): Promise<PhotoView> {
+  const photo = await findPhotoById(photoId);
+  if (photo === undefined || photo.status !== 'ready') {
+    throw notFound('photo');
+  }
+  if (photo.hostUserId !== userId) {
+    throw forbidden('You do not have access to this photo');
+  }
+  const row = await setIncludeInCredits(photoId, includeInCredits);
   return toPhotoView(row, await storage.presignGet(photo.storageKey, GET_URL_TTL_SEC));
 }

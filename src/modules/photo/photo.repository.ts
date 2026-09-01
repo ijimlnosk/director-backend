@@ -29,50 +29,54 @@ export async function loadSceneResultForPhoto(
   return row as SceneResultForPhoto | undefined;
 }
 
-export interface PhotoRecord {
-  id: string;
+export interface PhotoFull extends PhotoRow {
   sceneResultId: string;
   storageKey: string;
   status: 'pending' | 'ready';
   hostUserId: string;
 }
 
-export async function findPhotoBySceneResult(
-  sceneResultId: string,
-): Promise<PhotoRecord | undefined> {
-  const [row] = await db
-    .select({
-      id: photos.id,
-      sceneResultId: photos.sceneResultId,
-      storageKey: photos.storageKey,
-      status: photos.status,
-      hostUserId: sessions.hostUserId,
-    })
+const READY_RETURN = {
+  id: photos.id,
+  contentType: photos.contentType,
+  bytes: photos.bytes,
+  width: photos.width,
+  height: photos.height,
+  takenAt: photos.takenAt,
+  includeInCredits: photos.includeInCredits,
+} as const;
+
+const PHOTO_FULL = {
+  id: photos.id,
+  sceneResultId: photos.sceneResultId,
+  storageKey: photos.storageKey,
+  status: photos.status,
+  hostUserId: sessions.hostUserId,
+  contentType: photos.contentType,
+  bytes: photos.bytes,
+  width: photos.width,
+  height: photos.height,
+  takenAt: photos.takenAt,
+  includeInCredits: photos.includeInCredits,
+} as const;
+
+function photoQuery() {
+  return db
+    .select(PHOTO_FULL)
     .from(photos)
     .innerJoin(sceneResults, eq(sceneResults.id, photos.sceneResultId))
     .innerJoin(scenes, eq(scenes.id, sceneResults.sceneId))
-    .innerJoin(sessions, eq(sessions.id, scenes.sessionId))
-    .where(eq(photos.sceneResultId, sceneResultId))
-    .limit(1);
-  return row as PhotoRecord | undefined;
+    .innerJoin(sessions, eq(sessions.id, scenes.sessionId));
 }
 
-export async function findPhotoById(photoId: string): Promise<PhotoRecord | undefined> {
-  const [row] = await db
-    .select({
-      id: photos.id,
-      sceneResultId: photos.sceneResultId,
-      storageKey: photos.storageKey,
-      status: photos.status,
-      hostUserId: sessions.hostUserId,
-    })
-    .from(photos)
-    .innerJoin(sceneResults, eq(sceneResults.id, photos.sceneResultId))
-    .innerJoin(scenes, eq(scenes.id, sceneResults.sceneId))
-    .innerJoin(sessions, eq(sessions.id, scenes.sessionId))
-    .where(eq(photos.id, photoId))
-    .limit(1);
-  return row as PhotoRecord | undefined;
+export async function findPhotoForScene(sceneId: string): Promise<PhotoFull | undefined> {
+  const [row] = await photoQuery().where(eq(scenes.id, sceneId)).limit(1);
+  return row as PhotoFull | undefined;
+}
+
+export async function findPhotoById(photoId: string): Promise<PhotoFull | undefined> {
+  const [row] = await photoQuery().where(eq(photos.id, photoId)).limit(1);
+  return row as PhotoFull | undefined;
 }
 
 /** Create (or re-key) the pending photo row for a scene result. */
@@ -108,14 +112,18 @@ export async function markPhotoReady(args: {
       height: args.height,
     })
     .where(eq(photos.id, args.photoId))
-    .returning({
-      id: photos.id,
-      contentType: photos.contentType,
-      bytes: photos.bytes,
-      width: photos.width,
-      height: photos.height,
-      takenAt: photos.takenAt,
-      includeInCredits: photos.includeInCredits,
-    });
+    .returning(READY_RETURN);
+  return row!;
+}
+
+export async function setIncludeInCredits(
+  photoId: string,
+  includeInCredits: boolean,
+): Promise<PhotoRow> {
+  const [row] = await db
+    .update(photos)
+    .set({ includeInCredits })
+    .where(eq(photos.id, photoId))
+    .returning(READY_RETURN);
   return row!;
 }
